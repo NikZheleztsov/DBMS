@@ -3,58 +3,51 @@
 #include <cstdint>
 #include <string>
 
-class Tuple  // Кортеж
+//schemata
+struct dbases
 {
-protected:
-    uint8_t attr_num = 0;
-    uint8_t id = 1; // autoincrement primary key
+    std::string schema_name;
+    bool schema_type; // 0 or 1
+};
 
+struct tb
+{
+    std::string table_name;
+    uint32_t rows_num;
+    uint32_t db;
 };
 
 // faculty
-class Fac : public Tuple
+struct fac // 0 type
 {
-protected:
-
     std::string name_fac;
     std::string name_nuc;
-    uint8_t num_dep;
+    uint32_t num_dep;
     bool is_spec;
-
-    template <typename T> friend class Table;
 };
 
 // department
-class Dep : public Tuple
+struct dep // 1 type
 {
-protected:
     std::string dep_name;
-    uint8_t fac_id;
-
-    template <typename T> friend class Table;
+    uint32_t fac_id;
 };
 
 // base organization
-class Borg : public Tuple
+struct borg // 2 type
 {
-protected:
     std::string borg_name;
     // (optional foreign key for preformance increase)
-    uint8_t fac_id;
-
-    template <typename T> friend class Table;
+    uint32_t fac_id;
 };
 
 // discipline
-class Dis : public Tuple
+struct dis // 3 type
 {
 protected:
     std::string dis_name;
-    uint8_t dis_teach_num;
-    uint8_t dep_id;
-    uint8_t borg_id;
-
-    template <typename T> friend class Table;
+    uint32_t dis_teach_num;
+    uint32_t foreign_id;
 };
 #endif
 
