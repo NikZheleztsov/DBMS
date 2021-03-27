@@ -7,7 +7,7 @@
 struct dbases
 {
     std::string schema_name;
-    bool schema_type; // 0 or 1
+    uint8_t schema_type; // 0 or 1
 };
 
 struct tb
@@ -44,7 +44,6 @@ struct borg // 2 type
 // discipline
 struct dis // 3 type
 {
-protected:
     std::string dis_name;
     uint32_t dis_teach_num;
     uint32_t foreign_id;
