@@ -4,6 +4,8 @@
 
 // working with config
 void config (std::filesystem::path current);
-void read_config ();
+
+// first start
+void check_for_init();
 
 #endif

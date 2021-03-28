@@ -9,11 +9,15 @@
 
 int main ()
 {
-    read_config();
+    check_for_init();
+    // if ../.databases/ is empty launch init_DBMS + config
     All_db db;
     // inserting to database_t
-    db.insert("schemata 0", 0);
+    db.insert({"schemata"}, {0}, 0);
     db.write();
+
+    All_db new_db;
+    new_db.read("information_schema");
     return 0;
 }
 

@@ -4,8 +4,10 @@
 #include <iostream>
 
 namespace fs = std::filesystem;
-uint32_t block_size;
+uint32_t block_size = 1024;
 fs::path root;
+std::string config_name = ".config",
+            db_dir = ".databases";
 
 void config (fs::path current)
 {
@@ -33,7 +35,6 @@ void config (fs::path current)
             }
         }
 
-        std::cout << "Success\n";
         config.close();
 
     } else {
@@ -42,16 +43,14 @@ void config (fs::path current)
     }
 }
 
-void read_config () 
+void check_for_init()
 {
-    std::string config_name = ".config";
     fs::path current = fs::current_path();
 
+    // find root
     if (fs::exists(current/config_name))
     {
-        std::cout << "Reading config ... \n";
         root = current;
-        config(current);
 
     } else {
 
@@ -59,14 +58,22 @@ void read_config ()
 
         if (fs::exists(current/config_name))
         {
-            std::cout << "Reading config ... \n";
             root = current;
-            config(current);
 
         } else {
 
-            std::cout << "Unable to open config file\n";
+            std::cout << "Unable to find DBMS directory\n\
+                          Try to put binary file in DBMS directory\n\
+                          You also need to have .config file in it\n";
             return;
         }
     }
+
+    if (!fs::exists(root/db_dir) || fs::is_empty(root/db_dir))
+    {
+            std::cout << "Initial configuration. Please wait a second\n";
+            config(root);
+
+            // initialization of DB_all database
+    } 
 }
