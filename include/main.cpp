@@ -7,17 +7,14 @@
    2 - hybrid fac
 */
 
+Database* db = nullptr;
+
 int main ()
 {
     check_for_init();
-    // if ../.databases/ is empty launch init_DBMS + config
-    All_db db;
-    // inserting to database_t
-    db.insert({"schemata"}, {0}, 0);
-    db.write();
-
-    All_db new_db;
-    new_db.read("information_schema");
+    Database fac (2, "MGTU Baumana");
+    if (db != nullptr)
+        db->select({0,1}, {0, 1, 2});
     return 0;
 }
 

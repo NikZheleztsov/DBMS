@@ -2,12 +2,16 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "databases.h"
+#include "tree.h"
 
 namespace fs = std::filesystem;
 uint32_t block_size = 1024;
 fs::path root;
 std::string config_name = ".config",
             db_dir = ".databases";
+
+extern Database* db;
 
 void config (fs::path current)
 {
@@ -28,9 +32,13 @@ void config (fs::path current)
         if (end != -1 && eq != -1)
         {
             try {
-                block_size = std::stoi(config_str.substr(eq + 2, end - eq - 2));
+
+                uint32_t bl_size = std::stoi(config_str.substr(eq + 2, end - eq - 2));
+                if (bl_size > 1023)
+                    block_size = bl_size;
+
             } catch (...) {
-                std::cout << "Error while opening config file\n";
+                std::cout << "Error while reading config file\n";
                 return;
             }
         }
@@ -69,11 +77,22 @@ void check_for_init()
         }
     }
 
-    if (!fs::exists(root/db_dir) || fs::is_empty(root/db_dir))
+    if (!fs::exists(root/db_dir/"information_schema"))
     {
             std::cout << "Initial configuration. Please wait a second\n";
             config(root);
 
-            // initialization of DB_all database
-    } 
+            db = new Database(0);
+            db->insert({"information_schema"}, {0}, 0);
+            db->insert({"db_table"}, {1, 0}, 1);
+            db->insert({"tb_table"}, {2, 0}, 1);
+            db->write();
+
+    } else {
+        // db->read("information_schema");
+        db = db_meta_read(db, "information_schema");
+        // reading of main db and push all names with id to AVL tree
+    }
 }
+
+
