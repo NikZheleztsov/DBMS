@@ -9,6 +9,8 @@
 #include <tuple>
 #include <boost/hana/tuple.hpp>
 
+class Database;
+
 class tuple 
 {
 protected:
@@ -18,12 +20,13 @@ protected:
 public:
     tuple () {}
     tuple(uint32_t s, std::string n) : size(s), name(n) {}
-    virtual uint32_t write(char* out) const = 0;
+    virtual void write(std::fstream& out) = 0;
     virtual void print (uint8_t width, std::vector<uint8_t> vec, 
             int8_t num_of_col, char sign, int32_t cond) const = 0;
     // virtual void read(std::fstream& in) = 0;
 
     friend class data_block;
+    friend void db_full_write (Database& db);
 };
 
 
@@ -49,19 +52,13 @@ public:
     dbases (std::string n, uint8_t type) : tuple(33, n), schema_type(type) {}
 
     // name <= 32
-    uint32_t write(char* out) const override
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = schema_type;
-
-        // 1 - sizeof(schema_type)
-        return i + 1;
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
+        out.write(reinterpret_cast<char*>(&schema_type), 1);
     }
 
     void print (uint8_t width, std::vector<uint8_t> col_num, 
@@ -108,19 +105,14 @@ public:
 
     tb (std::string n, uint32_t rows, uint32_t id) : tuple(40, n), rows_num(rows), db_id(id) {}
 
-    uint32_t write(char* out) const override
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = rows_num;
-        out[i+4] = db_id;
-
-        return i + 8;
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
+        out.write(reinterpret_cast<char*>(&rows_num), 4);
+        out.write(reinterpret_cast<char*>(&db_id), 4);
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
@@ -165,26 +157,20 @@ public:
     fac (std::string n, std::string nuc, uint32_t dep, bool spec) : 
         tuple(67, n), name_nuc(nuc), num_dep(dep), is_spec(spec) {}
 
-    uint32_t write(char* out) const override
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
 
-        for (; i < 32; i++)
-            out[i] = '\0';
+        out.write(name_nuc.c_str(), name.size());
+        bl = new char [32 - name_nuc.size()] ();
+        out.write(bl, 32 - name_nuc.size());
+        delete [] bl;
 
-        for (i = 0; i < name_nuc.size(); i++)
-            out[i] = name_nuc[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = num_dep;
-        out[i + 4] = is_spec;
-
-        return i + 5;
-
+        out.write(reinterpret_cast<char*>(&num_dep), 4);
+        out.write(reinterpret_cast<char*>(&is_spec), 1);
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
@@ -221,18 +207,8 @@ public:
 
     dep (std::string n, uint32_t id) : tuple(36, n), fac_id(id) {}
 
-    uint32_t write(char* out) const override
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = fac_id;
-
-        return i + 4;
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
@@ -268,18 +244,8 @@ public:
 
     borg (std::string n, uint32_t id) : tuple(36, n), fac_id(id) {}
 
-    uint32_t write(char* out) const override
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = fac_id;
-
-        return i + 4;
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
@@ -315,20 +281,9 @@ public:
     }
 
     dis (std::string n, uint32_t teach, uint32_t id) : tuple(40, n), dis_teach_num(teach), foreign_id(id) {}
-
-    uint32_t write(char* out) const override
+    
+    void write(std::fstream& out) override
     {
-        int i = 0;
-        for (i = 0; i < name.size(); i++)
-            out[i] = name[i];
-
-        for (; i < 32; i++)
-            out[i] = '\0';
-
-        out[i] = dis_teach_num;
-        out[i+4] = foreign_id;
-
-        return i + 8;
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 

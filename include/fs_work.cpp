@@ -16,59 +16,6 @@ extern std::string config_name,
 
 std::bitset<256> bit_blocks;
 
-class data_block 
-{
-    int pointer = 0;
-
-public:
-
-    // char* data;
-    // not scoped_array because it cannot be used in containers
-    // boost::shared_ptr<char[]> data {nullptr};
-    char* data = nullptr;
-    int8_t num_of_block = -1;
-
-    bool is_empty ()
-    {
-        return (!pointer);
-    }
-
-    data_block()
-    {
-        // data.reset(new char [block_size]);
-        data = new char [block_size];
-    }
-
-    // 1 if out of size
-    bool insert (std::pair<uint32_t, tuple*> tuple, uint8_t table_id, uint32_t size)
-    {
-        if (pointer == 0)
-        {
-           data[pointer] = table_id; 
-           data[pointer + 1] = size;
-           // data[pointer + 1] = tuple.second->size;
-           pointer += 5;
-        }
-
-        data[pointer] = tuple.first;
-        if ((block_size - pointer) > tuple.second->size)
-        {
-            pointer = tuple.second->write(&data[pointer + 4]);
-            return 0;
-        }
-
-        return 1;
-    }
-
-    // double free if not commented
-    /*
-    ~ data_block()
-    {
-        delete [] data;
-    }
-    */
-};
-
 void db_full_write (Database& db)
 {
     if (fs::exists(root/db_dir))
@@ -81,14 +28,9 @@ void db_full_write (Database& db)
             // db_name <= 248 !!!
             // 4 bytes for bl_size
             
-            /*
-            uint8_t bl_num = 8;
-            file.write(reinterpret_cast<char*>(&bl_num), 1);
-            */
-
             if (db.db_type != -1) // if not custom
             {
-                // 0 - 256 bytes
+                // 0 - 255 bytes
                 bool is_custom = 0;
                 file.write(reinterpret_cast<char*>(&is_custom), 1); // not custom
                 file.write(reinterpret_cast<char*>(&db.db_type), 1);
@@ -105,216 +47,82 @@ void db_full_write (Database& db)
                 file.write(bitset, 256);
                 delete [] bitset;
 
+                for (int i = 0; i < db.tb_vec.size(); i++)
+                {
+                    char* membl = new char [128] ();
+                    file.write(membl, 128);
+                    delete [] membl;
+                }
+
                 // table meta block
                 // size = block_size
                 // max num of tables = 8 [0 - 7]
                 // tb_name <= 64
                 // col_name <= 32
 
-                std::vector <std::vector<data_block>> tb_data_vec;
-
+                uint8_t num_of_bl = 0;
                 for (auto& x : db.tb_vec)
                 {
-                    std::vector<data_block> data_block_vec;
                     auto y = x->tuple_map.begin();
-                    bool cont_fl = 1;
-                    while (cont_fl)
+                    std::vector<uint8_t> pointers;
+                    bool is_first = true;
+                    while (y != x->tuple_map.end())
                     {
-                        data_block bl;
+                        uint32_t pointer = 0,
+                                 size = x->tuple_map.size();
 
-                        cont_fl = 0;
-                        for (; y != x->tuple_map.end(); y++)
+                        file.write(reinterpret_cast<char*>(&x->table_type), 1);
+                        if (is_first)
+                            file.write(reinterpret_cast<char*>(&size), 4);
+                        pointer += 5;
+
+                        bit_blocks.set(num_of_bl);
+                        pointers.push_back(num_of_bl + 1);
+                        num_of_bl++;
+
+                        uint32_t tup_size = y->second->size;
+                        for (; pointer < block_size && y != x->tuple_map.end(); y++, pointer += (4 + tup_size))
                         {
-                            if (bl.insert(*y, x->table_type, x->tuple_map.size()))
-                            {
-                                cont_fl = 1;
-                                break;
-                            }
+                            uint32_t key = y->first;
+                            file.write(reinterpret_cast<char*>(&key), 4);
+                            y->second->write(file);
                         }
 
-                        if (!bl.is_empty())
+                        if (pointer < block_size)
                         {
-                            data_block_vec.push_back(bl);
+                            char* membl = new char [block_size - pointer];
+                            file.write(membl, block_size - pointer);
+                            delete [] membl;
                         }
+                        
+                        is_first = false;
                     }
 
-
-                    // doesn`t work with new char [] ?!?
-                    // every table -- max 128 data blocks
-                    std::vector<uint8_t> pointers (128);
-                    uint8_t n = 0, j = 0;
-                    for (auto& z : data_block_vec)
-                    {
-                        for(; bit_blocks[j]; j++); //first ~1 bit
-                        z.num_of_block = j + 1;
-                        bit_blocks.set(j);
-                        pointers[n] = j + 1;
-                        n++;
-                    }
-
-                    tb_data_vec.push_back(data_block_vec);
-
-                    for (auto x : pointers)
-                        file.write(reinterpret_cast<char*>(&x), 1);
+                    x->pointers = pointers;
                 }
 
-                // ascending order of data blocks
-                for (auto z : tb_data_vec)
-                {
-                    std::sort(z.begin(), z.end(), [] (data_block d1, data_block d2) {
-                            return (d1.num_of_block < d2.num_of_block); });
-                }
-
-
-                std::sort(tb_data_vec.begin(), tb_data_vec.end(), [] (std::vector<data_block> d1,
-                            std::vector<data_block> d2) {
-                        return ((d1.size() != 0 && d2.size() != 0) ? 
-                                (d1[0].num_of_block < d2[0].num_of_block) :
-                                0);  });
-
-                // writing datablocks
-                for (auto a : tb_data_vec)
-                {
-                    for (auto b : a)
-                    {
-                        if (b.num_of_block == -1)
-                            throw std::invalid_argument("Error while writing data blocks");
-
-                        file.seekp(512 + 128 * db.tb_vec.size() + block_size * (b.num_of_block - 1) - 1);
-                        file.write(b.data, block_size);
-                    }
-                }
-
-                // bitset of blocks
                 file.seekp(256);
                 file.write(bit_blocks.to_string().c_str(), 256);
+                uint8_t num_of_iter = 0;
+                for (auto& x : db.tb_vec)
+                {
+                    file.seekp(512 + 128 * num_of_iter);
+                    num_of_iter++;
+
+                    for (auto& y : x->pointers)
+                    {
+                        if (y != 0)
+                            file.write(reinterpret_cast<char*>(&y), 1);
+                        else 
+                        {
+                            break;
+                        }
+                    }
+                }
 
             } else {
 
                 file.write(reinterpret_cast<char*>(1), 1);
-
-                /*
-                file.write(reinterpret_cast<char*>(&db.db_type), 1);
-                file.write(reinterpret_cast<char*>(&block_size), 4); 
-                file.write(db.db_name.c_str(), db.db_name.size());
-
-                uint8_t pad_size = 250 - db.db_name.size();
-                char * padding = new char [pad_size] ();
-                file.write(padding, pad_size);
-                delete [] padding;
-
-                // bitset (32 bytes)
-                char * bitset = new char [32] ();
-                file.write(bitset, 32);
-                delete [] bitset;
-
-                // table meta block
-                // size = block_size
-                // max num of tables = 8 [0 - 7]
-                // tb_name <= 64
-                // col_name <= 32
-
-                std::vector <std::vector<data_block>> tb_data_vec;
-
-                for (auto x : db.tb_vec)
-                {
-                    file.write(reinterpret_cast<char*>(&x->table_type), 1);
-                    // for future
-                    file.write(x->table_name.c_str(), x->table_name.size());
-
-                    pad_size = 64 - x->table_name.size();
-                    char * padding = new char [pad_size] ();
-                    file.write(padding, pad_size);
-                    delete [] padding;
-
-                    for (auto y : x->col_names)
-                    {
-                        file.write(y.c_str(), y.size());
-
-                        pad_size = 32 - y.size();
-                        char * padding = new char [pad_size] ();
-                        file.write(padding, pad_size);
-                        delete [] padding;
-                    }
-
-                    std::vector<data_block> data_block_vec;
-                    auto y = x->tuple_map.begin();
-                    bool cont_fl = 1;
-                    while (cont_fl)
-                    {
-                        data_block bl;
-
-                        cont_fl = 0;
-                        for (; y != x->tuple_map.end(); y++)
-                        {
-                            if (bl.insert(*y, x->table_type))
-                            {
-                                cont_fl = 1;
-                                break;
-                            }
-                        }
-
-                        if (!bl.is_empty())
-                        {
-                            data_block_vec.push_back(bl);
-                        }
-                    }
-
-                    tb_data_vec.push_back(data_block_vec);
-
-                    int size_of_pointers_bl = block_size - 65 - 32 * x->col_names.size();
-                    // doesn`t work with new char [] ?!?
-                    std::vector<uint8_t> pointers (size_of_pointers_bl);
-                    int n = 1;
-                    for (auto z : data_block_vec)
-                    {
-                        uint8_t j = 0;
-                        for(j = 0; bit_blocks[j]; j++); //first ~1 bit
-                        z.num_of_block = j + 1;
-                        bit_blocks.set(j);
-                        pointers[size_of_pointers_bl - n] = j + 1;
-                        n++;
-                    }
-
-                    for (auto x : pointers)
-                        file.write(reinterpret_cast<char*>(&x), size_of_pointers_bl);
-                }
-
-                for (int i = 0; i < 8 - db.tb_vec.size(); i++)
-                {
-                    char* empty_meta_table_block = new char [block_size] ();
-                    file.write(empty_meta_table_block, block_size);
-                }
-
-                // ascending order of data blocks
-                for (auto z : tb_data_vec)
-                {
-                    std::sort(z.begin(), z.end(), [] (data_block d1, data_block d2) {
-                            return (d1.num_of_block < d2.num_of_block); });
-                }
-
-
-                std::sort(tb_data_vec.begin(), tb_data_vec.end(), [] (std::vector<data_block> d1,
-                            std::vector<data_block> d2) {
-                        return ((d1.size() != 0 && d2.size() != 0) ? 
-                                (d1[0].num_of_block < d2[0].num_of_block) :
-                                0);  });
-
-                // writing datablocks
-                for (auto a : tb_data_vec)
-                {
-                    for (auto b : a)
-                    {
-                        file.seekp(256 + 32 + block_size * (8 + b.num_of_block - 1));
-                        file.write(b.data.get(), block_size);
-                    }
-                }
-
-                // bitset of blocks
-                file.seekp(256);
-                // std::cout << bit_blocks.to_string() << std::endl;
-                file.write(bit_blocks.to_string().c_str(), 256);
-                */
             }
 
             file.close();
@@ -335,55 +143,67 @@ Database* db_meta_read (Database* db, std::string name)
         std::fstream file (root/db_dir/name, std::ios::binary | std::ios::in);
         if (file.is_open())
         {
-           bool is_custom = 0;           
-           file.read(reinterpret_cast<char*>(&is_custom), 1);
-           if (!is_custom) // if not custom
-           {
-               // meta block 
-               int8_t type = -1;
-               uint32_t bl_size = block_size;
-               file.read(reinterpret_cast<char*>(&type), 1);
-               file.read(reinterpret_cast<char*>(&bl_size), 4);
+            bool is_custom = 0;           
+            file.read(reinterpret_cast<char*>(&is_custom), 1);
+            if (!is_custom) // if not custom
+            {
+                // meta block 
+                int8_t type = -1;
+                uint32_t bl_size = block_size;
+                file.read(reinterpret_cast<char*>(&type), 1);
+                file.read(reinterpret_cast<char*>(&bl_size), 4);
 
-               char* name = new char [250] ();
-               file.read(name, 250);
+                char* name = new char [250] ();
+                file.read(name, 250);
 
-               switch(type)
-               {
-                   case 0 :
-                       db = new Database(0);
-                       break;
+                switch(type)
+                {
+                    case 0 :
+                        db = new Database(0);
+                        break;
 
-                   case 1 :
-                       db = new Database(1, static_cast<std::string>(name));
-                       break;
+                    case 1 :
+                        db = new Database(1, static_cast<std::string>(name));
+                        break;
 
-                   case 2 :
-                       db = new Database(2, static_cast<std::string>(name));
-                       break;
+                    case 2 :
+                        db = new Database(2, static_cast<std::string>(name));
+                        break;
 
-                   default:
-                       throw std::invalid_argument("Can't read db. Unknown type");
-               }
+                    default:
+                        throw std::invalid_argument("Can't read db. Unknown type");
+                }
 
-               delete [] name;
-               db->bl_size = bl_size;
-               block_size = bl_size;
+                delete [] name;
+                db->bl_size = bl_size;
+                block_size = bl_size;
 
-               char* bits = new char [256];
-               file.read(bits, 256);
-               std::bitset<256> bitset2 {bits};
-               bit_blocks |= bitset2;
-               delete [] bits;
+                char* bits = new char [256];
+                file.read(bits, 256);
+                std::bitset<256> bitset2 {bits};
+                bit_blocks |= bitset2;
+                delete [] bits;
 
-               // tables reading
-               uint32_t num_of_tb = db->tb_vec.size();
-               for (auto& x : db->tb_vec)
-               {
+                // tables reading
+                uint32_t num_of_tb = db->tb_vec.size();
+                uint8_t num_of_iter = 0;
+                for (auto& x : db->tb_vec)
+                {
                     for (int i = 0; file.read(reinterpret_cast<char*>(&x->pointers[i]), 1) 
-                            && i < 128 && x->pointers[i] != 0; i++)
+                            && i < 128 && x->pointers[i] != 0; i++);
+
+                    if (x != db->tb_vec[db->tb_vec.size() - 1])
                     {
-                        file.seekg(512 + 128 * num_of_tb + bl_size * (x->pointers[i] - 1) - 1);
+                        num_of_iter++;
+                        file.seekg(512 + 128 * num_of_iter);
+                    }
+                }
+
+                for (auto& x : db->tb_vec)
+                {
+                    for (int i = 0; x->pointers[i] != 0 && i < 128; i++)
+                    {
+                        file.seekg(512 + 128 * num_of_tb + bl_size * (x->pointers[i] - 1));
                         uint8_t tb_type = 255;
                         file.read(reinterpret_cast<char*>(&tb_type), 1);
                         if (tb_type != x->table_type)
@@ -413,67 +233,13 @@ Database* db_meta_read (Database* db, std::string name)
                             x->tuple_map.insert(pair);
                         }
                     }
-               }
+                }
 
-           } else {
+            } else {
 
-               /*
-                  uint8_t type;
-                  file.read(reinterpret_cast<char*>(&type), 1);
-                  std::vector <uint8_t> point (256);
-               // end of block
-               file.seekg(512 + db->bl_size * num_of_x - 1);
-               for (int i = 0; i < db->bl_size - 65 - 32 * db->tb_vec.size(); i++)
-               {
-               file.read(reinterpret_cast<char*>(&point[i]), 1);
-               if (point[i] == 0)
-               break;
-               else 
-               --point[i];
-               }
+            }
 
-               switch (type)
-               {
-               case 0 :
-               {
-               DB_table* tb = new DB_table;
-               db.tb_vec.push_back(tb);
-               }
-               case 1 :
-               {
-               Tb_table* tb = new Tb_table;
-               db.tb_vec.push_back(tb);
-               }
-               case 2 :
-               {
-               Fac_table* tb = new Fac_table;
-               db.tb_vec.push_back(tb);
-               }
-               case 3 :
-               {
-               Dep_table* tb = new Dep_table;
-               db.tb_vec.push_back(tb);
-               }
-               case 4 : 
-               {
-               Borg_table* tb = new Borg_table;
-               db.tb_vec.push_back(tb);
-               }
-               case 5 :
-               {
-               Dis_table* tb = new Dis_table(5);
-               db.tb_vec.push_back(tb);
-               }
-               case 6 :
-               {
-               Dis_table* tb = new Dis_table(6);
-               db.tb_vec.push_back(tb);
-               }
-               }
-               */
-           }
-
-           file.close();
+            file.close();
 
         } else {
             std::cout << "Unable to open the database\nExiting ...\n";
