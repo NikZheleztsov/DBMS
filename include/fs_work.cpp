@@ -133,6 +133,7 @@ void db_full_write (Database& db)
 
     } else {
         std::cout << "Unable to find directory with databases\nExiting ...\n";
+        // throw exception
     }
 }
 

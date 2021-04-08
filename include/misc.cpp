@@ -86,6 +86,9 @@ void check_for_init()
             std::cout << "Initial configuration. Please wait a second\n";
             config(root);
 
+            if (!fs::exists(root/db_dir))
+                fs::create_directory(root/db_dir);
+
             db = new Database(0);
             db->insert({"information_schema"}, {0}, 0);
 //            db->insert({"db_table"}, {1, 0}, 1);
