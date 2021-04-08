@@ -8,13 +8,41 @@
 */
 
 Database* db = nullptr;
+Database* current_db = nullptr;
+std::string curr_db = "none";
 
 int main ()
 {
     check_for_init();
-    Database fac (2, "MGTU Baumana");
-    if (db != nullptr)
-        db->select({0,1}, {0, 1, 2});
+    std::cout << "Welcome to DBMS (pre-alpha). \n\
+It`s not ready yet. However, all tasks were done.\n\
+Print 'help' in order to get commands, corresponding\n\
+to number of exercise\n\n";
+    std::string answ = "";
+    while (answ != "quit" && answ != "q")
+    {
+        std::cout << "DBMS [(" << curr_db << ")]> ";
+        answ.clear();
+
+        do {
+            std::string temp;
+            std::getline(std::cin, temp);
+            answ += temp;
+        } while (answ[answ.size() - 1] != ';' && !(answ == "q" 
+                || answ == "quit" || answ == "help"));
+
+        if (answ == "help")
+        {
+            help();
+            continue;
+        }
+
+        if (answ != "quit" && answ != "q")
+            parsing(answ);
+
+        // std::cout << answ;
+    }
+
     return 0;
 }
 

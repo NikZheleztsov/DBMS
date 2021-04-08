@@ -9,6 +9,8 @@
 #include <ios>
 #include <iomanip>
 #include <iostream>
+#include <tuple>
+#include "t_print.h"
 
 class Database;
 
@@ -26,6 +28,7 @@ protected:
     std::vector <std::string> col_names;
     std::vector <uint8_t> pointers;
     std::unordered_map<uint32_t, tuple*> tuple_map;
+    std::vector<std::string> data_types;
     uint32_t row_num = 0;
 
     Table () : pointers(128) {};
@@ -35,35 +38,18 @@ public:
     virtual void insert (std::vector<std::string>,
                          std::vector<uint32_t> ) = 0;
 
-    void select (std::vector<uint8_t> col_num, int8_t num_of_col = -1, char sign = ' ', int32_t cond = -1) const
+    void select (std::vector<uint8_t> col_num, int32_t for_id, 
+            int8_t num_of_col, char sign, int64_t  cond) const
     {
-        this->print(col_num, num_of_col, sign, cond);
-    }
-
-    void print (std::vector<uint8_t> col_num, int8_t num_of_col, char sign, int32_t cond) const
-    {
-        uint8_t width = 20;
-
-        /*
-        std::cout << std::setw(width * col_names.size()) 
-            << std::setfill('-') << '-';
-            */
-
-        for (auto x : col_num)
-            std::cout << std::setw(width) << col_names[x];
-        std::cout << std::endl;
-
-        for (auto x : tuple_map)
+        if (col_num[0] == 255 && col_num.size() == 1)
         {
-            if (col_num[0] == 0)
-                std::cout << std::setw(width) << x.first;
-            x.second->print(width, {col_num.begin() + 1, col_num.end()}, 
-                    num_of_col, sign, cond);
-        }
+        } else { /* special columns - not done yet */ }
     }
+
 
     friend void db_full_write (Database&);
     friend Database* db_meta_read (Database* db, std::string name);
+    friend void show_databases ();
 
     virtual ~Table() {};
 };
@@ -79,6 +65,7 @@ public:
         table_type = 0;
         table_name = "SCHEMATA";
         col_names = {"db_id", "schema_name", "schema_type"};
+        data_types = {"str", "int"};
     }
 
     void insert(std::vector<std::string> l1,
@@ -95,6 +82,7 @@ public:
     }
 };
 
+/*
 class Tb_table : public Table
 {
     //tb
@@ -120,6 +108,7 @@ public:
         row_num ++;
     }
 };
+*/
 
 
 class Fac_table : public Table
@@ -132,7 +121,8 @@ public:
     {
         table_type = 2;
         table_name = "FACULTIES";
-        col_names = {"fac_id", "fac_name", "nuc_name", "num_dep", "is_hybrid" };
+        col_names = {"fac_id", "fac_name", "nuc_name", "num_dep", "is_hybrid"};
+        data_types = {"str", "str", "int", "int"};
     }
 
     void insert (std::vector<std::string> l1,
@@ -156,7 +146,8 @@ public:
     {
         table_type = 3;
         table_name = "DEPARTMENTS";
-        col_names = {"dep_id", "dep_name", "fac_id" };
+        col_names = {"dep_id", "dep_name", "fac_id"};
+        data_types = {"str", "int"};
     }
 
     void insert (std::vector<std::string> l1,
@@ -181,6 +172,7 @@ public:
         table_type = 4;
         table_name = "BASE_ORG";
         col_names = {"borg_id", "borg_name", "fac_id"};
+        data_types = {"str", "int"};
     }
     
     void insert (std::vector<std::string> l1,
@@ -204,6 +196,8 @@ public:
     Dis_table(uint8_t type)
     {
         table_type = type;
+        data_types = {"str", "int", "int"};
+
         if (type == 5)
         {
             table_name = "DISCIPLINES_DEP";

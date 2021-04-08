@@ -9,4 +9,9 @@ void config (std::filesystem::path current);
 // first start
 void check_for_init();
 
+void parsing (std::string& answ);
+void show_databases ();
+
+void help();
+
 #endif

@@ -4,6 +4,8 @@
 #include <iostream>
 #include "databases.h"
 #include "tree.h"
+#include "t_print.h"
+#include <algorithm>
 
 namespace fs = std::filesystem;
 uint32_t block_size = 1024;
@@ -12,6 +14,8 @@ std::string config_name = ".config",
             db_dir = ".databases";
 
 extern Database* db;
+extern Database* current_db;
+extern std::string curr_db;
 
 void config (fs::path current)
 {
@@ -84,8 +88,8 @@ void check_for_init()
 
             db = new Database(0);
             db->insert({"information_schema"}, {0}, 0);
-            db->insert({"db_table"}, {1, 0}, 1);
-            db->insert({"tb_table"}, {2, 0}, 1);
+//            db->insert({"db_table"}, {1, 0}, 1);
+//            db->insert({"tb_table"}, {2, 0}, 1);
             db->write();
 
     } else {
@@ -95,4 +99,109 @@ void check_for_init()
     }
 }
 
+void show_databases ()
+{
+    T_print tb;
+    uint8_t max_w = 0;
+    std::vector<std::string> names;
 
+    for (auto x : db->tb_vec[0]->tuple_map)
+    {
+        names.push_back(x.second->name);
+        if (x.second->name.size() > max_w)
+            max_w = x.second->name.size();
+    }
+
+    tb.push_header({"databases"}, {max_w});
+    tb.push_tuple(names);
+    tb.print();
+}
+
+void help () 
+{
+    std::cout << "This is some kind of documentation\n";
+}
+
+void parsing (std::string& answ)
+{
+    //remove duplicate/first/last spaces
+    if (answ[0] == ' ')
+        answ.erase(0, 1);
+
+    for (int pos = 0; (pos = answ.find(' ', pos + 1)) != -1; )
+    {
+        while(answ[pos + 1] == ' ')
+            answ.erase(pos + 1, 1);
+    }
+
+    if (answ[answ.size() - 2] == ' ')
+        answ.erase(answ.size() - 2, 1);
+
+    // all words to vec
+    std::vector<std::string> all_words;
+    for (int pos = 0, prev_pos = 0; (pos = answ.find(' ', pos + 1)) && prev_pos != -1; prev_pos = pos)
+    {
+        if (prev_pos != 0)
+            prev_pos++;
+
+        std::string temp = answ.substr(prev_pos, pos - prev_pos);
+
+        // all ( ... ) to one word
+        if (!temp.empty())
+        {
+            if (temp[0] == '(')
+            {
+                temp += answ.substr(pos + 1);
+                pos = -1;
+            }
+        }
+
+        all_words.push_back(temp);
+    }
+
+    // delete ';' in the last word
+    std::string* str_pointer = &all_words[all_words.size() - 1];
+    str_pointer->erase(str_pointer->size() - 1, 1);
+
+    /*
+    for (auto x : all_words)
+        std::cout << x << std::endl;
+        */
+
+    if (all_words.size() > 1)
+    {
+        if (all_words.size() == 2)
+        {
+            if (all_words[0] == "show" || all_words[0] == "SHOW")
+            {
+                if (all_words[1] == "databases" || all_words[1] == "DATABASES")
+                {
+                    show_databases();
+
+                } else if (all_words[1] == "tables" || all_words[1] == "TABLES")
+                {
+                } else 
+                    std::cout << "Unknown command\n";
+
+            } else if (all_words[0] == "describe" || all_words[0] == "DESCRIBE")
+            {
+                // if all_words[1] is a part of col_names of current db
+            }
+        
+        } else if (all_words.size() == 3)
+        {
+            if ((all_words[0] == "use" || all_words[0] == "USE") &&
+                    (all_words[1] == "database" || all_words[1] == "DATABASE"))
+            {
+            }
+
+        } else if (all_words.size() == 4)
+        {
+
+        } else 
+            std::cout << "Unknown command\n";
+
+    } else 
+        //one-word command 
+        std::cout << "Unknown command\n";
+}

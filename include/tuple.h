@@ -6,10 +6,30 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
-#include <tuple>
-#include <boost/hana/tuple.hpp>
 
 class Database;
+
+/*
+template <typename T, typename Y>
+bool universal_comp(T& data, char& sign, Y& cond)
+{
+    if (static_cast<T&>(cond))
+    {
+        switch(sign)
+        {
+            case '>':
+                return (data > cond);
+            
+            case '<':
+                return (data < cond);
+
+            case '=':
+                return (data == cond);
+        }
+    } else 
+        throw std::invalid_argument("Comparison error");
+}
+*/
 
 class tuple 
 {
@@ -21,14 +41,15 @@ public:
     tuple () {}
     tuple(uint32_t s, std::string n) : size(s), name(n) {}
     virtual void write(std::fstream& out) = 0;
+
     virtual void print (uint8_t width, std::vector<uint8_t> vec, 
-            int8_t num_of_col, char sign, int32_t cond) const = 0;
-    // virtual void read(std::fstream& in) = 0;
+            int8_t num_of_col, char sign, int64_t cond) const = 0;
 
-    friend class data_block;
+    friend class Table;
+    friend class DB_table;
     friend void db_full_write (Database& db);
+    friend void show_databases ();
 };
-
 
 //schemata
 class dbases : public tuple
@@ -62,21 +83,25 @@ public:
     }
 
     void print (uint8_t width, std::vector<uint8_t> col_num, 
-            int8_t num_of_col, char sign, int32_t cond) const override
+            int8_t num_of_col, char sign, int64_t cond) const override
     {
-        // !!! need dynamic get for tuple
-        std::string str [1] = {name};
-        uint8_t num [1] = {schema_type};
-
-        for (auto x : col_num)
+        /*
+        // find col
+        bool is_tuple_ok = false;
+        switch (num_of_col)
         {
-            if (x < 2)
-                std::cout << std::setw(width) << str[1 - x];
-            else 
-                std::cout << std::setw(width) << num[x - 1];
+            case 1:
+                is_tuple_ok = universal_comp(name, sign, cond);
+                break;
+
+            case 2: 
+                is_tuple_ok = universal_comp(schema_type, sign, cond);
+                break;
         }
 
-        std::cout << std::endl;
+        if (is_tuple_ok)
+            // in_print(width, col_num);
+            */
     }
 };
 
@@ -116,7 +141,7 @@ public:
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int32_t cond) const override
+            char sign, int64_t cond) const override
     {
         if (num_of_col == -1 || sign == ' ' || cond == -1)
             std::cout << std::setw(width) << name <<
@@ -174,7 +199,7 @@ public:
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int32_t cond) const override
+            char sign, int64_t cond) const override
     {
         if (num_of_col == -1 || sign == ' ' || cond == -1)
             std::cout << std::setw(width) << name <<
@@ -209,10 +234,16 @@ public:
 
     void write(std::fstream& out) override
     {
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
+
+        out.write(reinterpret_cast<char*>(&fac_id), 4);
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int32_t cond) const override
+            char sign, int64_t cond) const override
     {
         if (num_of_col == -1 || sign == ' ' || cond == -1)
             std::cout << std::setw(width) << name <<
@@ -246,10 +277,16 @@ public:
 
     void write(std::fstream& out) override
     {
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
+
+        out.write(reinterpret_cast<char*>(&fac_id), 4);
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int32_t cond) const override
+            char sign, int64_t cond) const override
     {
         if (num_of_col == -1 || sign == ' ' || cond == -1)
             std::cout << std::setw(width) << name <<
@@ -281,13 +318,20 @@ public:
     }
 
     dis (std::string n, uint32_t teach, uint32_t id) : tuple(40, n), dis_teach_num(teach), foreign_id(id) {}
-    
+
     void write(std::fstream& out) override
     {
+        out.write(name.c_str(), name.size());
+        char* bl = new char [32 - name.size()] ();
+        out.write(bl, 32 - name.size());
+        delete [] bl;
+
+        out.write(reinterpret_cast<char*>(&dis_teach_num), 4);
+        out.write(reinterpret_cast<char*>(&foreign_id), 1);
     }
 
     void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int32_t cond) const override
+            char sign, int64_t cond) const override
     {
         if (num_of_col == -1 || sign == ' ' || cond == -1)
             std::cout << std::setw(width) << name <<
