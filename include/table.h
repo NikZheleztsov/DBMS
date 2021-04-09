@@ -11,6 +11,7 @@
 #include <iostream>
 #include <tuple>
 #include "t_print.h"
+#include <climits>
 
 class Database;
 
@@ -22,10 +23,7 @@ protected:
     // num of data blocks
 
     // <= 64 bytes
-    uint8_t table_type;
-    std::string table_name;
     // <= 32 bytes
-    std::vector <std::string> col_names;
     std::vector <uint8_t> pointers;
     std::unordered_map<uint32_t, tuple*> tuple_map;
     std::vector<std::string> data_types;
@@ -34,6 +32,10 @@ protected:
     Table () : pointers(128) {};
 
 public:
+
+    uint8_t table_type;
+    std::string table_name;
+    std::vector <std::string> col_names;
 
     virtual void insert (std::vector<std::string>,
                          std::vector<uint32_t> ) = 0;
@@ -46,10 +48,20 @@ public:
         } else { /* special columns - not done yet */ }
     }
 
+    uint32_t get_id (std::string name)
+    {
+        for (auto x : tuple_map)
+            if (x.second->name == name)
+                return x.first;
+        return UINT_MAX;
+    }
+
+    void delete_tuple (uint32_t id) { tuple_map.erase(id); }
 
     friend void db_full_write (Database&);
     friend Database* db_meta_read (Database* db, std::string name);
     friend void show_databases ();
+    friend void check_for_init();
 
     virtual ~Table() {};
 };
@@ -63,7 +75,7 @@ public:
     DB_table ()
     {
         table_type = 0;
-        table_name = "SCHEMATA";
+        table_name = "schemata";
         col_names = {"db_id", "schema_name", "schema_type"};
         data_types = {"str", "int"};
     }
@@ -120,7 +132,7 @@ public:
     Fac_table ()
     {
         table_type = 2;
-        table_name = "FACULTIES";
+        table_name = "faculties";
         col_names = {"fac_id", "fac_name", "nuc_name", "num_dep", "is_hybrid"};
         data_types = {"str", "str", "int", "int"};
     }
@@ -145,7 +157,7 @@ public:
     Dep_table()
     {
         table_type = 3;
-        table_name = "DEPARTMENTS";
+        table_name = "departments";
         col_names = {"dep_id", "dep_name", "fac_id"};
         data_types = {"str", "int"};
     }
@@ -170,7 +182,7 @@ public:
     Borg_table()
     {
         table_type = 4;
-        table_name = "BASE_ORG";
+        table_name = "base_org";
         col_names = {"borg_id", "borg_name", "fac_id"};
         data_types = {"str", "int"};
     }
@@ -200,10 +212,10 @@ public:
 
         if (type == 5)
         {
-            table_name = "DISCIPLINES_DEP";
+            table_name = "disciplines_dep";
             col_names = {"dis_id", "dis_name", "num_teach", "dep_id"};
         } else if (type == 6) {
-            table_name = "DISCIPLINES_BORG";
+            table_name = "disciplines_borg";
             col_names = {"dis_id", "dis_name", "num_teach", "borg_id"};
         }
     }

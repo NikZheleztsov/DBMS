@@ -6,6 +6,7 @@
 #include <exception>
 
 extern uint32_t block_size;
+extern std::vector<std::string> names;
 
 class All_db;
 extern Database* db;
@@ -25,7 +26,7 @@ public:
     std::vector<Table*> tb_vec;
 
     Database () {};
-    Database (uint8_t type, std::string name = "") : db_type(type) 
+    Database (uint8_t type, std::string name = "", bool is_first_create = false) : db_type(type) 
     {
         // 0 = all_db
         // 1 = common faculty
@@ -40,8 +41,11 @@ public:
             tb_vec.push_back(new Dep_table);
             tb_vec.push_back(new Dis_table (5));
 
-            db->insert({name}, {type}, 0);
-            db->write();
+            if (is_first_create)
+            {
+                names.push_back(name);
+                db->insert({name}, {type}, 0);
+            }
 
             if (db_type == 2)
             {
@@ -56,8 +60,10 @@ public:
             tb_vec.push_back(new DB_table);
             // tb_vec.push_back(new Tb_table);
         }
-    }
 
+        if (type != 0 && is_first_create)
+            db_full_write(*this);
+    }
 
     void insert (std::vector<std::string> l1, 
                  std::vector<uint32_t> l2, uint8_t tb_num)
@@ -66,6 +72,7 @@ public:
             throw std::invalid_argument("Wrong number");
 
         tb_vec[tb_num]->insert(l1, l2);
+        this->write();
 
     }
 
@@ -84,6 +91,18 @@ public:
                 tb_vec[x]->select(col_names, for_id, num_of_col, sign, cond);
             else 
                 throw std::invalid_argument("Invalid column num");
+    }
+
+    uint32_t get_id (uint8_t tb_num, std::string name)
+    {
+        return tb_vec[tb_num]->get_id(name);
+    }
+
+    void delete_id (uint8_t tb_num, uint32_t id)
+    {
+        if (tb_num < tb_vec.size())
+            tb_vec[tb_num]->delete_tuple(id);
+        this->write();
     }
     
     void write () { db_full_write(*this); }

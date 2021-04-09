@@ -9,7 +9,7 @@
 void T_print::print_hor_line ()
 {
     std::cout << '+';
-    std::cout << std::setw(m_width - 2) << std::setfill('-') << '-';
+    std::cout << std::setw(m_width - 1) << std::setfill('-') << '-';
     std::cout << '+' << std::endl;
 }
 
@@ -54,7 +54,7 @@ void T_print::print()
     for (auto x : header )
     {
         std::cout << ' ' << std::setfill(' ') 
-            << std::setw(x.second) << x.first << ' ' << '|';
+             << std::setw(x.second) << x.first << ' ' << '|';
     }
     std::cout << std::endl;
     print_hor_line();
@@ -63,24 +63,15 @@ void T_print::print()
     for (auto x : tuples)
     {
         std::cout << '|';
-        /*
-           for (auto y : boost::combine(x, header))
-           {
-           std::pair<std::string, uint8_t> h;
-           std::string str;
-boost:tie(str, h) = y;
-std::cout << std::setw(h.second) << str << '|';
-}
-*/
 
         for (int i = 0; i < x.size(); i++)
-{
-    std::cout << std::setfill(' ') << 
-        std::setw(header[i].second + 1) << x[i] << " |";
-}
+        {
+            std::cout << std::setfill(' ') <<
+                std::setw(header[i].second + 1) << x[i] << " |";
+        }
 
-std::cout << std::endl;
-}
+        std::cout << std::endl;
+    }
 
-print_hor_line();
+    print_hor_line();
 }

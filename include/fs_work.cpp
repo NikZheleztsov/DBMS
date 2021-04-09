@@ -129,10 +129,12 @@ void db_full_write (Database& db)
 
         } else {
             std::cout << "Unable to create a database file\n";
+            throw;
         }
 
     } else {
         std::cout << "Unable to find directory with databases\nExiting ...\n";
+        throw;
         // throw exception
     }
 }
@@ -244,10 +246,12 @@ Database* db_meta_read (Database* db, std::string name)
 
         } else {
             std::cout << "Unable to open the database\nExiting ...\n";
+            throw;
         }
 
     } else {
         std::cout << "Unable to find directory with databases\nExiting ...\n";
+        throw;
     }
 
     return db;

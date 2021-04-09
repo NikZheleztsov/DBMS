@@ -49,6 +49,7 @@ public:
     friend class DB_table;
     friend void db_full_write (Database& db);
     friend void show_databases ();
+    friend void check_for_init();
 };
 
 //schemata
