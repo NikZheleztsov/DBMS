@@ -25,9 +25,9 @@ protected:
     // <= 64 bytes
     // <= 32 bytes
     std::vector <uint8_t> pointers;
-    std::unordered_map<uint32_t, tuple*> tuple_map;
-    std::vector<std::string> data_types;
     uint32_t row_num = 0;
+    std::vector<std::string> data_types;
+    std::unordered_map<uint32_t, tuple*> tuple_map;
 
     Table () : pointers(128) {};
 
@@ -40,28 +40,28 @@ public:
     virtual void insert (std::vector<std::string>,
                          std::vector<uint32_t> ) = 0;
 
-    void select (std::vector<uint8_t> col_num, int32_t for_id, 
-            int8_t num_of_col, char sign, int64_t  cond) const
+    template <typename T>
+    void select (std::string name, bool is_sort, bool dir) const
     {
-        if (col_num[0] == 255 && col_num.size() == 1)
-        {
-        } else { /* special columns - not done yet */ }
+        
     }
 
-    uint32_t get_id (std::string name)
+    int32_t get_id (std::string name)
     {
         for (auto x : tuple_map)
             if (x.second->name == name)
                 return x.first;
-        return UINT_MAX;
+        return -1;
     }
 
     void delete_tuple (uint32_t id) { tuple_map.erase(id); }
 
+    friend void parsing_in (std::vector<std::string>);
     friend void db_full_write (Database&);
-    friend Database* db_meta_read (Database* db, std::string name);
+    friend Database* db_meta_read (std::string name);
     friend void show_databases ();
     friend void check_for_init();
+    friend class Database;
 
     virtual ~Table() {};
 };

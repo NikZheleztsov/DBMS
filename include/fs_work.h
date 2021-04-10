@@ -3,6 +3,6 @@
 #include "databases.h"
 
 void db_full_write (Database& db);
-Database* db_read (Database* db, std::string name);
+Database* db_meta_read (std::string name);
 
 #endif

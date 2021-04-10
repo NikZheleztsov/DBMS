@@ -4,9 +4,15 @@
 #include "table.h"
 #include "tuple.h"
 #include <exception>
+#include <filesystem>
 
 extern uint32_t block_size;
 extern std::vector<std::string> names;
+namespace fs = std::filesystem;
+
+extern fs::path root;
+extern std::string config_name,
+            db_dir;
 
 class All_db;
 extern Database* db;
@@ -17,16 +23,17 @@ protected:
 
     // -1 = custom database
     int8_t db_type = -1;
-    std::string db_name = "";
     uint32_t bl_size = block_size;
     // num of data blocks
 
 public:
 
+    std::string db_name = "";
     std::vector<Table*> tb_vec;
 
     Database () {};
-    Database (uint8_t type, std::string name = "", bool is_first_create = false) : db_type(type) 
+    Database (uint8_t type, std::string name = "", 
+            bool is_first_create = false) : db_type(type) 
     {
         // 0 = all_db
         // 1 = common faculty
@@ -76,26 +83,77 @@ public:
 
     }
 
-    void select (std::vector<uint32_t> tb_num, std::vector<uint8_t> col_names = {255},
-            int32_t for_id = -1, int8_t num_of_col = -1, char sign = ' ', int64_t cond = -1)
-    {
-        /*
-        if (num_of_col == -1 || sign == ' ' || cond == -1)
-            tb_vec[tb_num]->select(col_num);
-        else 
-            tb_vec[tb_num]->select(col_num, num_of_col, sign, cond);
-            */
-
-        for (auto x : tb_num)
-            if (x < tb_vec.size())
-                tb_vec[x]->select(col_names, for_id, num_of_col, sign, cond);
-            else 
-                throw std::invalid_argument("Invalid column num");
-    }
-
-    uint32_t get_id (uint8_t tb_num, std::string name)
+    int32_t get_id (uint8_t tb_num, std::string name)
     {
         return tb_vec[tb_num]->get_id(name);
+    }
+
+    tuple* get_tuple (uint8_t tb_num, uint32_t key)
+    {
+        auto it = tb_vec[tb_num]->tuple_map.find(key);
+        return (it != tb_vec[tb_num]->tuple_map.end()) ? 
+            it->second : nullptr;
+    }
+
+    void select (uint32_t tb_num, std::string name = "",
+            bool is_sort = 0, bool dir = 0)
+    {
+        if (tb_num < tb_vec.size() || (tb_num !=0 && is_sort == true)
+            tb_vec[tb_num]->select(name, is_sort, dir);
+        else 
+            throw std::invalid_argument("Invalid column num");
+    }
+
+    int8_t change_tuple (uint8_t tb_num, uint32_t key, tuple* new_tup)
+    {
+        if (tb_vec[tb_num]->tuple_map.contains(key))
+        {
+            auto it = tb_vec[tb_num]->tuple_map.find(key);
+            delete it->second;
+            it->second = new_tup;
+            this->write();
+            return 0;
+        } else 
+            std::cout << "No such tuple in table\n";
+        return 1;
+    }
+
+    void rename (std::string new_name)
+    {
+        std::string temp = db_name;
+        int32_t temp_id = db->get_id(0, temp);
+
+        // change in db name of database
+        tuple* old_tup = db->get_tuple(0, temp_id);
+        if (temp_id == -1 || old_tup == nullptr)
+        {
+            std::cout << "Error! Aborting...\n";
+            return;
+        }
+
+        db_name = new_name;
+
+        tuple* new_tup = new dbases 
+            (dynamic_cast<dbases&>(*old_tup));
+        new_tup->name = new_name;
+
+        if (db->change_tuple(0, temp_id, new_tup))
+        {
+            std::cout << "Error! Aborting...\n";
+            return;
+        }
+
+        // change in vec names
+        for (auto x = names.begin(); x < names.end(); ++x)
+            if (*x == temp)
+            {
+                *x = new_name;
+                break;
+            }
+
+        this->write();
+        if (fs::exists(root/db_dir/temp))
+            fs::remove(root/db_dir/temp);
     }
 
     void delete_id (uint8_t tb_num, uint32_t id)
@@ -108,7 +166,7 @@ public:
     void write () { db_full_write(*this); }
 
     friend void db_full_write (Database&);
-    friend Database* db_meta_read (Database* db, std::string name);
+    friend Database* db_meta_read (std::string name);
     friend Database& init_tables(Database& db);
 
     ~Database ()

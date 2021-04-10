@@ -139,8 +139,9 @@ void db_full_write (Database& db)
     }
 }
 
-Database* db_meta_read (Database* db, std::string name) 
+Database* db_meta_read (std::string name) 
 {
+    Database* db;
     if (fs::exists(root/db_dir/name))
     {
         std::fstream file (root/db_dir/name, std::ios::binary | std::ios::in);
@@ -225,7 +226,19 @@ Database* db_meta_read (Database* db, std::string name)
                                     break;
 
                                 case 1:
-                                    tup = new tb(file);
+                                    tup = new fac(file);
+                                    break;
+
+                                case 2:
+                                    tup = new dep(file);
+                                    break;
+
+                                case 3:
+                                    tup = new borg(file);
+                                    break;
+
+                                case 4:
+                                    tup = new dis(file);
                                     break;
 
                                 default:

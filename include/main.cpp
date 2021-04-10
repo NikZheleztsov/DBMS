@@ -11,6 +11,7 @@ Database* db = nullptr;
 Database* current_db = nullptr;
 std::string curr_db = "none";
 
+
 int main ()
 {
     check_for_init();
@@ -20,7 +21,7 @@ Print 'help' in order to get commands, corresponding\n\
 to number of exercise\n\n";
     std::string answ = "";
     while (answ != "quit" && answ != "q")
-    {
+    { 
         std::cout << "DBMS [(" << curr_db << ")]> ";
         answ.clear();
 

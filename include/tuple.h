@@ -35,25 +35,28 @@ class tuple
 {
 protected:
     uint32_t size = 0;
-    std::string name = ""; // 32 byte
 
 public:
+    std::string name = ""; // 32 byte
+
     tuple () {}
     tuple(uint32_t s, std::string n) : size(s), name(n) {}
     virtual void write(std::fstream& out) = 0;
 
-    virtual void print (uint8_t width, std::vector<uint8_t> vec, 
-            int8_t num_of_col, char sign, int64_t cond) const = 0;
+    virtual std::vector<std::string> print (int8_t num_of_col, 
+            char sign, int64_t cond) const = 0;
 
     friend class Table;
     friend class DB_table;
     friend void db_full_write (Database& db);
     friend void show_databases ();
     friend void check_for_init();
+
+    virtual ~tuple () {};
 };
 
 //schemata
-class dbases : public tuple
+class dbases : public tuple // type 0
 {
     uint8_t schema_type;
 
@@ -69,9 +72,11 @@ public:
 
         this->name = name;
         schema_type = type;
+        delete [] name;
     }
 
     dbases (std::string n, uint8_t type) : tuple(33, n), schema_type(type) {}
+    dbases (dbases& db) : tuple(33, db.name), schema_type(db.schema_type) {};
 
     // name <= 32
     void write(std::fstream& out) override
@@ -83,29 +88,13 @@ public:
         out.write(reinterpret_cast<char*>(&schema_type), 1);
     }
 
-    void print (uint8_t width, std::vector<uint8_t> col_num, 
-            int8_t num_of_col, char sign, int64_t cond) const override
+    std::vector<std::string> print (int8_t num_of_col, 
+            char sign, int64_t cond) const override
     {
-        /*
-        // find col
-        bool is_tuple_ok = false;
-        switch (num_of_col)
-        {
-            case 1:
-                is_tuple_ok = universal_comp(name, sign, cond);
-                break;
-
-            case 2: 
-                is_tuple_ok = universal_comp(schema_type, sign, cond);
-                break;
-        }
-
-        if (is_tuple_ok)
-            // in_print(width, col_num);
-            */
     }
 };
 
+/*
 class tb : public tuple
 {
     //std::string table_name;
@@ -150,9 +139,10 @@ public:
                 std::setw(width) << db_id << std::endl;
     }
 };
+*/
 
 // faculty
-class fac : public tuple // 0 type
+class fac : public tuple // 1 type
 {
     //std::string name_fac;
     std::string name_nuc;
@@ -199,19 +189,14 @@ public:
         out.write(reinterpret_cast<char*>(&is_spec), 1);
     }
 
-    void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
+    std::vector<std::string> print (int8_t num_of_col, 
             char sign, int64_t cond) const override
     {
-        if (num_of_col == -1 || sign == ' ' || cond == -1)
-            std::cout << std::setw(width) << name <<
-                std::setw(width) << name_nuc << 
-                std::setw(width) << num_dep <<
-                std::setw(width) << is_spec << std::endl;
     }
 };
 
 // department
-class dep : public tuple// 1 type
+class dep : public tuple// 2 type
 {
     //std::string dep_name;
     uint32_t fac_id;
@@ -243,17 +228,13 @@ public:
         out.write(reinterpret_cast<char*>(&fac_id), 4);
     }
 
-    void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
-            char sign, int64_t cond) const override
+    std::vector<std::string> print (int8_t num_of_col, char sign, int64_t cond) const override
     {
-        if (num_of_col == -1 || sign == ' ' || cond == -1)
-            std::cout << std::setw(width) << name <<
-                std::setw(width) << fac_id << std::endl;
     }
 };
 
 // base organization
-class borg : public tuple// 2 type
+class borg : public tuple// 3 type
 {
     //std::string borg_name;
     // (optional foreign key for preformance increase)
@@ -286,17 +267,14 @@ public:
         out.write(reinterpret_cast<char*>(&fac_id), 4);
     }
 
-    void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
+    std::vector<std::string> print (int8_t num_of_col, 
             char sign, int64_t cond) const override
     {
-        if (num_of_col == -1 || sign == ' ' || cond == -1)
-            std::cout << std::setw(width) << name <<
-                std::setw(width) << fac_id << std::endl;
     }
 };
 
 // discipline
-class dis : public tuple // 3 type
+class dis : public tuple // 4 type
 {
     // std::string dis_name;
     uint32_t dis_teach_num;
@@ -318,7 +296,8 @@ public:
         delete [] name;
     }
 
-    dis (std::string n, uint32_t teach, uint32_t id) : tuple(40, n), dis_teach_num(teach), foreign_id(id) {}
+    dis (std::string n, uint32_t teach, uint32_t id) : tuple(40, n), 
+            dis_teach_num(teach), foreign_id(id) {}
 
     void write(std::fstream& out) override
     {
@@ -331,13 +310,9 @@ public:
         out.write(reinterpret_cast<char*>(&foreign_id), 1);
     }
 
-    void print (uint8_t width, std::vector <uint8_t> num, int8_t num_of_col, 
+    std::vector<std::string> print (int8_t num_of_col, 
             char sign, int64_t cond) const override
     {
-        if (num_of_col == -1 || sign == ' ' || cond == -1)
-            std::cout << std::setw(width) << name <<
-                std::setw(width) << dis_teach_num << 
-                std::setw(width) << foreign_id << std::endl;
     }
 };
 

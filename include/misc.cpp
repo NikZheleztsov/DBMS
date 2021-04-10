@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include "databases.h"
+#include "fs_work.h"
 #include "tree.h"
 #include "t_print.h"
 #include <algorithm>
@@ -97,9 +98,7 @@ void check_for_init()
             db->write();
 
     } else {
-        // db->read("information_schema");
-        db = db_meta_read(db, "information_schema");
-        // reading of main db and push all names with id to AVL tree
+        db = db_meta_read("information_schema");
     }
 
     if (db != nullptr)
@@ -205,6 +204,9 @@ void describe_table (std::string name)
                 max_w = x.size();
         }
 
+        // don`t output id
+        names.erase(names.begin());
+
         tb.push_header({name + " columns"}, {max_w});
         for (auto x : names)
             tb.push_tuple({x});
@@ -230,57 +232,10 @@ void case_sens (std::string& str)
     }
 }
 
-void parsing (std::string& answ)
+void parsing (std::vector<std::string> w);
+
+void parsing_in (std::vector<std::string> all_words)
 {
-    //remove duplicate/first/last spaces
-    if (answ[0] == ' ')
-        answ.erase(0, 1);
-
-    for (int pos = 0; (pos = answ.find(' ', pos + 1)) != -1; )
-    {
-        while(answ[pos + 1] == ' ')
-            answ.erase(pos + 1, 1);
-    }
-
-    if (answ[answ.size() - 2] == ' ')
-        answ.erase(answ.size() - 2, 1);
-
-    // all words to vec
-    std::vector<std::string> all_words;
-    for (int pos = 0, prev_pos = 0; 
-            (pos = answ.find(' ', pos + 1)) && prev_pos != -1; prev_pos = pos)
-    {
-        if (prev_pos != 0)
-            prev_pos++;
-
-        std::string temp = answ.substr(prev_pos, pos - prev_pos);
-
-        // all ( ... ) to one word
-        if (!temp.empty())
-        {
-            if (temp[0] == '(')
-            {
-                if (pos != -1)
-                    temp += answ.substr(pos + 1);
-                pos = -1;
-            }
-        }
-
-        all_words.push_back(temp);
-    }
-
-    // delete ';' in the last word
-    std::string* str_pointer = &all_words[all_words.size() - 1];
-    str_pointer->erase(str_pointer->size() - 1, 1);
-
-    // case insensitivity of first word
-    case_sens(all_words[0]);
-
-    /*
-    for (auto x : all_words)
-        std::cout << x << std::endl;
-        */
-
     if (all_words.size() == 2)
     {
         if (all_words[0] == "show")
@@ -318,7 +273,7 @@ void parsing (std::string& answ)
                         current_db = nullptr;
                     }
 
-                    current_db = db_meta_read(current_db, all_words[1]);
+                    current_db = db_meta_read(all_words[1]);
                     curr_db = all_words[1];
 
                 } catch (...) {
@@ -407,9 +362,274 @@ void parsing (std::string& answ)
                     return;
                 }
             }
+        } else if (all_words[0] == "insert")
+        {
+            case_sens(all_words[2]);
+            if (all_words[2] == "values")
+            {
+                if (current_db == nullptr)
+                {
+                    std::cout << "No database is used\n";
+                    return;
+                }
+
+                bool is_ok = false;
+                int i = -1;
+                for (auto x : current_db->tb_vec)
+                {
+                    i++;
+                    if (x->table_name == all_words[1])
+                    {
+                        is_ok = true;
+                        break;
+                    }
+                }
+
+                if (is_ok)
+                {
+                    std::string val = all_words[3];
+                    if (val[0] == '(' && val[val.size() - 1] == ')')
+                    {
+                        std::vector<std::string> str_val;
+                        std::vector<uint32_t> int_val;
+                        std::vector<std::string> data_t;
+
+                        // del all ' '
+                        val.erase(std::remove(val.begin(), 
+                                    val.end(), ' '), val.end());
+
+                        // parsing of (...)
+                        for (size_t pos = 0, prev_pos = 0; (pos = val.find(',', prev_pos + 1)) 
+                                && prev_pos != -1; prev_pos = pos)
+                        {
+                            std::string temp;
+                            uint32_t tr;
+                            prev_pos++;
+                            if (pos != std::string::npos)
+                                temp = val.substr(prev_pos, pos - prev_pos);
+                            else 
+                                temp = val.substr(prev_pos, val.size() - 1 - prev_pos);
+
+                            if (temp[0] == '\'' && temp[temp.size() - 1] == '\'')
+                            {
+                                data_t.push_back("str");
+
+                                std::stringstream in (temp);
+                                std::string no_quo;
+                                in >> std::quoted(no_quo, '\'');
+                                str_val.push_back(no_quo);
+
+                            } else {
+                                try {
+                                    tr = std::stoi(temp);
+                                } catch (...) {
+                                    std::cout << "Wrong value\n";
+                                    return;
+                                }
+
+                                int_val.push_back(tr);
+                                data_t.push_back("int");
+                            }
+                        }
+
+                        if (data_t != current_db->tb_vec[i]->data_types)
+                        {
+                            std::cout << "Wrong value\n";
+                            return;
+
+                        } else {
+                            current_db->insert(str_val, int_val, i);
+                        }
+
+                    } else 
+                        std::cout << "Wrong value format (e.g. \"('str', 5)\")\n";
+                } else 
+                    std::cout << "Unknown table name";
+            } else
+                std::cout << "Unknown command\n";
         } else 
             std::cout << "Unknown command\n";
 
+    } else if (all_words.size() == 5)
+    {
+        if (all_words[0] == "insert")
+        {
+            // deleting of 'into'
+            std::string temp_2 = all_words[1];
+            case_sens(temp_2);
+            if (temp_2 == "into")
+            {
+                all_words.erase(++all_words.begin());
+                parsing(all_words);
+
+            } else {
+                std::cout << "Unknown command\n";
+            }
+        } else if (all_words[0] == "delete")
+        {
+            case_sens(all_words[1]);
+            case_sens(all_words[3]);
+            if (all_words[1] == "from" && all_words[3] == "where")
+            {
+                // check if table exists
+                if (current_db == nullptr)
+                {
+                    std::cout << "No database is used\n";
+                    return;
+                }
+
+                bool is_ok = false;
+                int i = -1;
+                for (auto x : current_db->tb_vec)
+                {
+                    i++;
+                    if (x->table_name == all_words[2])
+                    {
+                        is_ok = true;
+                        break;
+                    }
+                }
+
+                if (is_ok)
+                {
+                    // parsing of argument
+                    size_t eq_pos = all_words[4].find('=');
+                    if (eq_pos != std::string::npos)
+                    {
+                        std::string arg = all_words[4].substr(eq_pos + 1, all_words[4].size() - eq_pos - 1);
+                        int id = -1;
+                        if (all_words[4].find("id") != std::string::npos)
+                        {
+                            try {
+                                id = std::stoi(arg);
+                            } catch (...) {
+                                std::cout << "Wrong id format\n";
+                                return;
+                            }
+
+                            if (id > current_db->tb_vec[i]->tuple_map.size() - 1)
+                                id = -1;
+
+                        } else if (all_words[4].find("name") != std::string::npos)
+                        {
+                            std::stringstream in (arg);
+                            std::string no_quo;
+                            in >> std::quoted(no_quo, '\'');
+                            id = current_db->get_id(i, no_quo);
+
+                        } else { 
+                            std::cout << "Unknown delete argument\n";
+                            return;
+                        }
+
+                        if (id != -1)
+                        {
+                            current_db->delete_id(i, id);
+
+                        } else 
+                            std::cout << "No tuple with " << all_words[4] << " was found\n";
+                    } else 
+                        std::cout << "Wrong delete argument format\n";
+                } else 
+                    std::cout << "Unknown table name\n";
+            } else 
+                std::cout << "Unknown command\n";
+
+        } else if (all_words[0] == "rename")
+        {
+            case_sens(all_words[1]);
+            case_sens(all_words[3]);
+            if (all_words[1] == "database" && all_words[3] == "to")
+            {
+                bool is_ok = false;
+                for (auto x : names)
+                    if (x == all_words[2])
+                        is_ok = true;
+
+                if (all_words[2] == "information_schema")
+                {
+                    std::cout << "Forbidden to rename this database\n";
+                    return;
+                }
+
+                if (is_ok)
+                {
+                    if (current_db == nullptr ? 1 : current_db->db_name != all_words[2])
+                    {
+                        Database* temp_db;
+                        temp_db = db_meta_read(all_words[2]);
+                        temp_db->rename(all_words[4]); // add not full writing 
+                        delete temp_db;
+                    } else {
+                        current_db->rename(all_words[4]);
+                        curr_db = all_words[4];
+                    }
+
+                } else 
+                    std::cout << "Unknown database name\n";
+            } else 
+                std::cout << "Unknown command\n";
+        } else 
+            std::cout << "Unknown command\n";
     } else 
         std::cout << "Unknown command\n";
+}
+
+void parsing (std::vector<std::string> w) // for inside use only
+{
+    parsing_in (w);
+}
+
+void parsing (std::string& answ)
+{
+    //remove duplicate/first/last spaces
+    if (answ[0] == ' ')
+        answ.erase(0, 1);
+
+    for (int pos = 0; (pos = answ.find(' ', pos + 1)) != -1; )
+    {
+        while(answ[pos + 1] == ' ')
+            answ.erase(pos + 1, 1);
+    }
+
+    if (answ[answ.size() - 2] == ' ')
+        answ.erase(answ.size() - 2, 1);
+
+    // all words to vec
+    std::vector<std::string> all_words;
+    for (int pos = 0, prev_pos = 0; 
+            (pos = answ.find(' ', pos + 1)) && prev_pos != -1; prev_pos = pos)
+    {
+        if (prev_pos != 0)
+            prev_pos++;
+
+        std::string temp = answ.substr(prev_pos, pos - prev_pos);
+
+        // all ( ... ) to one word
+        if (!temp.empty())
+        {
+            if (temp[0] == '(')
+            {
+                if (pos != -1)
+                    temp += answ.substr(pos + 1);
+                pos = -1;
+            }
+        }
+
+        all_words.push_back(temp);
+    }
+
+    // delete ';' in the last word
+    std::string* str_pointer = &all_words[all_words.size() - 1];
+    str_pointer->erase(str_pointer->size() - 1, 1);
+
+    // case insensitivity of first word
+    case_sens(all_words[0]);
+
+    /*
+    for (auto x : all_words)
+        std::cout << x << std::endl;
+        */
+
+    parsing_in (all_words);
 }
