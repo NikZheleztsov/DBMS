@@ -204,9 +204,6 @@ void describe_table (std::string name)
                 max_w = x.size();
         }
 
-        // don`t output id
-        names.erase(names.begin());
-
         tb.push_header({name + " columns"}, {max_w});
         for (auto x : names)
             tb.push_tuple({x});
@@ -438,7 +435,11 @@ void parsing_in (std::vector<std::string> all_words)
                             return;
 
                         } else {
-                            current_db->insert(str_val, int_val, i);
+                            try {
+                                current_db->insert(str_val, int_val, i);
+                            } catch (...) {
+                                std::cout << "Wrong foreign key\n";
+                            }
                         }
 
                     } else 
@@ -447,8 +448,7 @@ void parsing_in (std::vector<std::string> all_words)
                     std::cout << "Unknown table name";
             } else
                 std::cout << "Unknown command\n";
-        } else 
-            std::cout << "Unknown command\n";
+        } 
 
     } else if (all_words.size() == 5)
     {
@@ -465,6 +465,7 @@ void parsing_in (std::vector<std::string> all_words)
             } else {
                 std::cout << "Unknown command\n";
             }
+
         } else if (all_words[0] == "delete")
         {
             case_sens(all_words[1]);
@@ -571,9 +572,119 @@ void parsing_in (std::vector<std::string> all_words)
                 std::cout << "Unknown command\n";
         } else 
             std::cout << "Unknown command\n";
-    } else 
-        std::cout << "Unknown command\n";
-}
+    }
+
+    if (all_words.size() > 3 && all_words[0] == "select")
+    {
+        /*
+        case_sens(all_words[1]);
+        case_sens(all_words[2]);
+
+        // check if table exists
+        if (current_db == nullptr)
+        {
+            std::cout << "No database is used\n";
+            return;
+        }
+
+        bool is_ok = false;
+        int i = -1;
+        for (auto x : current_db->tb_vec)
+        {
+            i++;
+            if (x->table_name == all_words[3])
+            {
+                is_ok = true;
+                break;
+            }
+        }
+
+        if (!is_ok)
+        {
+            std::cout << "Unknown table name\n";
+            return;
+        }
+
+        if (all_words.size() == 4 && all_words[1] == "*" 
+                && all_words[2] == "from")
+        {
+            current_db->select(i);
+
+        } else if (all_words.size() > 5 && all_words[1] == "*" 
+                && all_words[2] == "from")
+        {
+            case_sens(all_words[4]);
+
+            if (all_words[4] == "where" && 
+                    ((all_words[5].find("name=") != std::string::npos) ||
+                     all_words[5].find("foreign_id=") != std::string::npos))
+            {
+                auto pos = all_words[5].find('=');
+                std::string arg = all_words[5].substr(pos + 1);
+
+                if (all_words.size() == 10)
+                {
+                    case_sens(all_words[6]);
+                    case_sens(all_words[7]);
+                    case_sens(all_words[9]);
+                    if (all_words[6] == "order" && all_words[7] == "by"
+                            && (all_words[9] == "asc" || all_words[9] == "desc"))
+                    {
+                        bool is_ok = false;
+                        for (auto x : current_db->tb_vec[i]->col_names)
+                            if (x == all_words[8])
+                            {
+                                is_ok = true;
+                                break;
+                            }
+
+                        if (is_ok)
+                        {
+                            bool dir = (all_words[9] == "asc");
+
+                            if (all_words[5].find("name=") != std::string::npos)
+                                current_db->select(i, arg, -1, true, all_words[8], dir);
+                            else 
+                                current_db->select(i, "", std::stoi(arg), true, all_words[8], dir);
+
+                        } else 
+                            std::cout << "Unknown column name\n";
+                    }
+
+                } else if (all_words[5].find("name=") != std::string::npos)
+                    {
+                        current_db->select(i, arg);
+                    } else 
+                        current_db->select(i, "", std::stoi(arg));
+
+            } else if (all_words[4] == "order")
+            {
+                case_sens(all_words[5]);
+                case_sens(all_words[7]);
+                if (all_words[5] == "by" && (all_words[7] == "asc" || all_words[7] == "desc"))
+                {
+                    bool dir = (all_words[7] == "asc");
+
+                    bool is_ok = false;
+                    for (auto x : current_db->tb_vec[i]->col_names)
+                        if (x == all_words[6])
+                        {
+                            is_ok = true;
+                            break;
+                        }
+
+                    if (is_ok)
+                        current_db->select(i, "", -1, true, all_words[6], dir);
+                    else 
+                        std::cout << "Unknown column name\n";
+                }
+            }
+                
+        } else
+            std::cout << "Unknown command\n";
+        */
+    } 
+} 
 
 void parsing (std::vector<std::string> w) // for inside use only
 {

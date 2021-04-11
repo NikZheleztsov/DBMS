@@ -20,7 +20,8 @@ void db_full_write (Database& db)
 {
     if (fs::exists(root/db_dir))
     {
-        std::fstream file (root/db_dir/db.db_name, std::ios::binary | std::ios::out);
+        std::fstream file (root/db_dir/db.db_name, 
+                std::ios::binary | std::ios::out);
         if (file.is_open())
         {
             // first block is always 256 bytes
@@ -31,6 +32,7 @@ void db_full_write (Database& db)
             if (db.db_type != -1) // if not custom
             {
                 // 0 - 255 bytes
+                // writing of database meta infromation
                 bool is_custom = 0;
                 file.write(reinterpret_cast<char*>(&is_custom), 1); // not custom
                 file.write(reinterpret_cast<char*>(&db.db_type), 1);
@@ -43,10 +45,13 @@ void db_full_write (Database& db)
                 delete [] padding;
 
                 // bitset (256 bytes)
+                // show, which blocks of data is empty
                 char * bitset = new char [256] ();
                 file.write(bitset, 256);
                 delete [] bitset;
 
+                // 128 * number_of_tables
+                // tables meta infromation
                 for (int i = 0; i < db.tb_vec.size(); i++)
                 {
                     char* membl = new char [128] ();
@@ -54,12 +59,7 @@ void db_full_write (Database& db)
                     delete [] membl;
                 }
 
-                // table meta block
-                // size = block_size
-                // max num of tables = 8 [0 - 7]
-                // tb_name <= 64
-                // col_name <= 32
-
+                // writing of data blocks
                 uint8_t num_of_bl = 0;
                 for (auto& x : db.tb_vec)
                 {
@@ -72,16 +72,20 @@ void db_full_write (Database& db)
                                  size = x->tuple_map.size();
 
                         file.write(reinterpret_cast<char*>(&x->table_type), 1);
+                        pointer += 1;
                         if (is_first)
+                        {
                             file.write(reinterpret_cast<char*>(&size), 4);
-                        pointer += 5;
+                            pointer += 4;
+                        }
 
                         bit_blocks.set(num_of_bl);
                         pointers.push_back(num_of_bl + 1);
                         num_of_bl++;
 
                         uint32_t tup_size = y->second->size;
-                        for (; pointer < block_size && y != x->tuple_map.end(); y++, pointer += (4 + tup_size))
+                        for (; pointer < block_size && y != x->tuple_map.end(); 
+                                y++, pointer += (4 + tup_size))
                         {
                             uint32_t key = y->first;
                             file.write(reinterpret_cast<char*>(&key), 4);
@@ -101,6 +105,7 @@ void db_full_write (Database& db)
                     x->pointers = pointers;
                 }
 
+                // writing of bitset
                 file.seekp(256);
                 file.write(bit_blocks.to_string().c_str(), 256);
                 uint8_t num_of_iter = 0;
@@ -114,15 +119,14 @@ void db_full_write (Database& db)
                         if (y != 0)
                             file.write(reinterpret_cast<char*>(&y), 1);
                         else 
-                        {
                             break;
-                        }
                     }
                 }
 
             } else {
 
                 file.write(reinterpret_cast<char*>(1), 1);
+                // writing of custom database
             }
 
             file.close();
@@ -193,7 +197,8 @@ Database* db_meta_read (std::string name)
                 uint8_t num_of_iter = 0;
                 for (auto& x : db->tb_vec)
                 {
-                    for (int i = 0; file.read(reinterpret_cast<char*>(&x->pointers[i]), 1) 
+                    for (int i = 0; file.read(reinterpret_cast<char*>
+                                (&x->pointers[i]), 1) 
                             && i < 128 && x->pointers[i] != 0; i++);
 
                     if (x != db->tb_vec[db->tb_vec.size() - 1])
@@ -208,6 +213,7 @@ Database* db_meta_read (std::string name)
                     for (int i = 0; x->pointers[i] != 0 && i < 128; i++)
                     {
                         file.seekg(512 + 128 * num_of_tb + bl_size * (x->pointers[i] - 1));
+                        int pos = file.tellg();
                         uint8_t tb_type = 255;
                         file.read(reinterpret_cast<char*>(&tb_type), 1);
                         if (tb_type != x->table_type)
@@ -225,19 +231,23 @@ Database* db_meta_read (std::string name)
                                     tup = new dbases(file);
                                     break;
 
-                                case 1:
+                                case 2:
                                     tup = new fac(file);
                                     break;
 
-                                case 2:
+                                case 3:
                                     tup = new dep(file);
                                     break;
 
-                                case 3:
+                                case 4:
                                     tup = new borg(file);
                                     break;
 
-                                case 4:
+                                case 5:
+                                    tup = new dis(file);
+                                    break;
+
+                                case 6:
                                     tup = new dis(file);
                                     break;
 
