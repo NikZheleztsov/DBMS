@@ -29,7 +29,7 @@ public:
             bool is_first_create = false);
 
     void insert (std::vector<std::string> l1, 
-                 std::vector<uint32_t> l2, uint8_t tb_num);
+                 std::vector<uint32_t> l2, uint8_t tb_num, int32_t force_id = -1);
 
     int32_t get_id (uint8_t tb_num, std::string name);
 
@@ -41,6 +41,11 @@ public:
             bool is_sort = false, int8_t col = -1, bool dir = false,
             bool is_write = false);
 
+
+    /*
+    void update_tup (uint8_t tb_num, uint32_t id,
+            std::vector<std::string> v1, std::vector<uint32_t> v2);
+            */
 
     void rename (std::string new_name);
 

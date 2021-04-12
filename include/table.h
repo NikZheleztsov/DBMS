@@ -30,7 +30,7 @@ public:
     std::vector <std::string> col_names;
 
     virtual void insert (std::vector<std::string>,
-                         std::vector<uint32_t> ) = 0;
+                         std::vector<uint32_t>, int32_t) = 0;
 
     void select(std::vector<int8_t>, int8_t, char, std::string,
             bool is_sort, int8_t col, bool dir, bool) const;
@@ -59,7 +59,7 @@ public:
 
     DB_table ();
     void insert(std::vector<std::string> l1,
-                std::vector<uint32_t> l2) override;
+                std::vector<uint32_t> l2, int32_t) override;
 };
 
 
@@ -72,7 +72,7 @@ public:
     Fac_table ();
 
     void insert (std::vector<std::string> l1,
-            std::vector<uint32_t> l2) override;
+            std::vector<uint32_t> l2, int32_t) override;
 };
 
 class Dep_table : public Table
@@ -84,7 +84,7 @@ public:
     Dep_table();
 
     void insert (std::vector<std::string> l1,
-            std::vector<uint32_t> l2) override;
+            std::vector<uint32_t> l2, int32_t) override;
 };
 
 class Borg_table : public Table
@@ -96,7 +96,7 @@ public:
     Borg_table();
     
     void insert (std::vector<std::string> l1,
-            std::vector<uint32_t> l2) override;
+            std::vector<uint32_t> l2, int32_t) override;
 };
 
 // type 5 and 6
@@ -107,7 +107,7 @@ public:
 
     Dis_table(uint8_t type);
     void insert (std::vector<std::string> l1,
-            std::vector<uint32_t> l2) override;
+            std::vector<uint32_t> l2, int32_t) override;
 };
 
 #endif 

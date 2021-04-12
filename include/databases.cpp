@@ -4,6 +4,7 @@
 #include <exception>
 #include <filesystem>
 #include "databases.h"
+#include <limits.h>
 
 extern uint32_t block_size;
 extern std::vector<std::string> names;
@@ -49,7 +50,6 @@ Database::Database (uint8_t type, std::string name,
     } else {
         db_name = "information_schema";
         tb_vec.push_back(new DB_table);
-        // tb_vec.push_back(new Tb_table);
     }
 
     if (type != 0 && is_first_create)
@@ -57,14 +57,16 @@ Database::Database (uint8_t type, std::string name,
 }
 
 void Database::insert (std::vector<std::string> l1, 
-        std::vector<uint32_t> l2, uint8_t tb_num)
+        std::vector<uint32_t> l2, uint8_t tb_num, int32_t force_id)
 {
     if (tb_num > tb_vec.size())
         throw std::invalid_argument("Wrong number");
 
-    tb_vec[tb_num]->insert(l1, l2);
-    // don't write
-    this->write();
+    // WHY DOESNT EXCEPTION GO UPPER???
+    // because can't catch empty exception (throw;)
+   
+    tb_vec[tb_num]->insert(l1, l2, force_id);
+    write();
 }
 
 int32_t Database::get_id (uint8_t tb_num, std::string name)
@@ -96,7 +98,7 @@ int8_t Database::change_tuple (uint8_t tb_num, uint32_t key, tuple* new_tup)
         auto it = tb_vec[tb_num]->tuple_map.find(key);
         delete it->second;
         it->second = new_tup;
-        this->write();
+        write();
         return 0;
     } else 
         std::cout << "No such tuple in table\n";
@@ -145,7 +147,7 @@ void Database::delete_id (uint8_t tb_num, uint32_t id)
 {
     if (tb_num < tb_vec.size())
         tb_vec[tb_num]->delete_tuple(id);
-    this->write();
+    write();
 }
 
 void Database::write () { db_full_write(*this); }

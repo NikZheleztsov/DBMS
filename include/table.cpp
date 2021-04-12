@@ -44,29 +44,6 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
         out.push_back(tup);
     }
 
-    ///////////////////////////////////////////////////////
-    if (col_out[0] != -1)
-    {
-        for (auto x : out)
-        {
-            // making vector of columns which have to be deleted
-            std::vector<uint8_t> col_del;
-            int i = 0;
-            for (auto y : col_names)
-            {
-                col_del.push_back(i);
-                i++;
-            }
-
-            for (auto y : col_out)
-                col_del.erase(std::find(col_del.begin(), col_del.end(), y));
-
-            // deleting
-            for (auto y : col_del)
-                x.erase(x.begin() + y);
-        }
-    }
-    ///////////////////////////////////////////////////////
 
     // need to catch all exceptions !!!
     if (where_col_num != -1)
@@ -74,61 +51,105 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
         switch (sign)
         {
             case '=':
-                out.erase(std::remove_if(out.begin(), out.end(), 
-                            [&where_col_num, &cond] (std::vector<std::string>& a) {
-                           return !(a[where_col_num] == cond);
-                            }));
+                std::erase_if(out, [&where_col_num, &cond] (std::vector<std::string>& a) {
+                            return !(a[where_col_num] == cond);
+                            });
                 break;
 
             case '>':
                 if (data_types[where_col_num] != "int")
                     throw;
 
-                out.erase(std::remove_if(out.begin(), out.end(), [&where_col_num, &cond] (std::vector<std::string>& a) {
-                        return (std::stoi(a[where_col_num]) <= std::stoi(cond));}));
+                std::erase_if(out, [&where_col_num, &cond] (std::vector<std::string>& a) {
+                        return (std::stoi(a[where_col_num]) <= std::stoi(cond));});
                 break;
 
             case '<':
                 if (data_types[where_col_num] != "int")
                     throw;
 
-                out.erase(std::remove_if(out.begin(), out.end(), [&where_col_num, &cond] (std::vector<std::string>& a) {
-                        return (std::stoi(a[where_col_num]) >= std::stoi(cond));}));
+                std::erase_if(out, [&where_col_num, &cond] (std::vector<std::string>& a) {
+                        return (std::stoi(a[where_col_num]) >= std::stoi(cond));});
                 break;
 
             default:
-                throw;
+                throw std::invalid_argument("invalid type");
         }
     }
 
-    tb.push_header(col_names, max_w);
 
     if (is_sort)
     {
-        std::sort(out.begin(), out.end(), [&dir, &sort_col_num] (std::vector<std::string>& a,
+        std::sort(out.begin(), out.end(), [&dir, &sort_col_num, this] (std::vector<std::string>& a,
                                               std::vector<std::string>& b) {
-                if (dir)
-                    return (a[sort_col_num] < b[sort_col_num]);
-                else 
-                    return (a[sort_col_num] > b[sort_col_num]);
+                if (this->data_types[sort_col_num] == "str")
+                {
+                    if (dir)
+                        return (a[sort_col_num] < b[sort_col_num]);
+                    else 
+                        return (a[sort_col_num] > b[sort_col_num]);
+                } else {
+                    
+                    if (dir)
+                        return (std::stoi(a[sort_col_num]) < std::stoi(b[sort_col_num]));
+                    else
+                        return (std::stoi(a[sort_col_num]) > std::stoi(b[sort_col_num]));
+                }
+                    
                 });
     } else {
         std::sort(out.begin(), out.end(), [] (std::vector<std::string>& a,
                     std::vector<std::string>& b) {
-                    return (a[0] < b[0]);
+                    return (std::stoi(a[0]) < std::stoi(b[0]));
                 });
     }
 
+    // delete some columns
+    auto col_names_copy = col_names;
+    ///////////////////////////////////////////////////////
+    if (col_out[0] != -1)
+    {
+        std::vector<uint8_t> col_del;
+
+        // making vector of columns which have to be deleted
+        int i = 0;
+        for (auto y : col_names)
+        {
+            col_del.push_back(i);
+            i++;
+        }
+
+        for (auto y : col_out)
+            col_del.erase(std::find(col_del.begin(), col_del.end(), y));
+
+        for (auto& x : out)
+        {
+            // deleting
+            for (auto y : col_del)
+                x.erase(x.begin() + y);
+        }
+
+        for (auto y : col_del)
+            col_names_copy.erase(col_names_copy.begin() + y);
+    }
+
+    ///////////////////////////////////////////////////////
+
     if (!out.empty())
     {
+        tb.push_header(col_names_copy, max_w);
         for (auto x : out)
             tb.push_tuple(x);
         tb.print();
     }
 
-    if (is_write && col_out[0] == -1 && table_type == 2)
+    if (is_write && table_type == 2)
     {
         // writing to a new file
+    } else if (is_write) {
+        std::cout << "Unable to write this type of sample!\n\
+            It has to be faculties table\n";
+        return;
     }
 }
 
@@ -151,15 +172,18 @@ DB_table::DB_table ()
 }
 
 void DB_table::insert(std::vector<std::string> l1,
-        std::vector<uint32_t> l2)
+        std::vector<uint32_t> l2, int32_t force_id)
 {
+    if (force_id == -1)
+        force_id = tuple_map.size();
+
     // schema_name, schema_type
     if (l1.size() != 1 || l2.size() != 1)
         throw std::invalid_argument ("DB_table");
 
     // CLEAN !!!
     dbases* ins = new dbases ( l1[0], l2[0]);
-    tuple_map.insert({tuple_map.size(), ins });
+    tuple_map.insert({force_id, ins });
     row_num ++;
 }
 
@@ -201,13 +225,16 @@ Fac_table::Fac_table ()
 }
 
 void Fac_table::insert (std::vector<std::string> l1,
-        std::vector<uint32_t> l2)
+        std::vector<uint32_t> l2, int32_t force_id)
 {
     if (l1.size() != 2 || l2.size() != 2)
         throw std::invalid_argument("Fac_table");
 
+    if (force_id == -1)
+        force_id = tuple_map.size();
+
     fac* faculty = new fac(l1[0], l1[1], l2[0], l2[1]);
-    tuple_map.insert({tuple_map.size(), faculty});
+    tuple_map.insert({force_id, faculty});
     row_num ++;
 }
 
@@ -220,16 +247,19 @@ Dep_table::Dep_table()
 }
 
 void Dep_table::insert (std::vector<std::string> l1,
-        std::vector<uint32_t> l2)
+        std::vector<uint32_t> l2, int32_t force_id)
 {
     if (l1.size() != 1 || l2.size() != 1)
         throw std::invalid_argument("Dep_table");
 
     if (!current_db->tb_vec[0]->tuple_map.contains(l2[0]))
-        throw;
+        throw std::invalid_argument("Wrong foreign key");
+
+    if (force_id == -1)
+        force_id = tuple_map.size();
 
     dep* department = new dep (l1[0], l2[0]);
-    tuple_map.insert({tuple_map.size(), department});
+    tuple_map.insert({force_id, department});
     row_num++;
 }
 
@@ -242,16 +272,19 @@ Borg_table::Borg_table()
 }
 
 void Borg_table::insert (std::vector<std::string> l1,
-        std::vector<uint32_t> l2)
+        std::vector<uint32_t> l2, int32_t force_id)
 {
     if (l1.size() != 1 || l2.size() != 1)
         throw std::invalid_argument("Borg_table");
 
     if (!current_db->tb_vec[0]->tuple_map.contains(l2[0]))
-        throw;
+        throw std::invalid_argument("Wrong foreign key");
+
+    if (force_id == -1)
+        force_id = tuple_map.size();
 
     borg* bg = new borg (l1[0], l2[0]);
-    tuple_map.insert({tuple_map.size(), bg});
+    tuple_map.insert({force_id, bg});
     row_num++;
 }
 
@@ -272,7 +305,7 @@ Dis_table::Dis_table(uint8_t type)
 }
 
 void Dis_table::insert (std::vector<std::string> l1,
-        std::vector<uint32_t> l2)
+        std::vector<uint32_t> l2, int32_t force_id)
 {
     if (l1.size() != 1 || l2.size() != 2)
         throw std::invalid_argument("Dis_table");
@@ -281,15 +314,17 @@ void Dis_table::insert (std::vector<std::string> l1,
     {
         case 5:
             if (!current_db->tb_vec[1]->tuple_map.contains(l2[1]))
-                throw;
+                throw std::invalid_argument("Wrong foreign key");
 
         case 6: 
             if (!current_db->tb_vec[3]->tuple_map.contains(l2[1]))
-                throw;
+                throw std::invalid_argument("Wrong foreign key");
     }
 
+    if (force_id == -1)
+        force_id = tuple_map.size();
 
     dis* discipline = new dis (l1[0], l2[0], l2[1]);
-    tuple_map.insert({tuple_map.size(), discipline});
+    tuple_map.insert({force_id, discipline});
     row_num++;
 }

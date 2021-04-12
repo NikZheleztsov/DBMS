@@ -21,7 +21,7 @@ void db_full_write (Database& db)
     if (fs::exists(root/db_dir))
     {
         std::fstream file (root/db_dir/db.db_name, 
-                std::ios::binary | std::ios::out);
+                std::ios::binary | std::ios::out | std::ios::trunc);
         if (file.is_open())
         {
             // first block is always 256 bytes
@@ -65,25 +65,34 @@ void db_full_write (Database& db)
                 {
                     auto y = x->tuple_map.begin();
                     std::vector<uint8_t> pointers;
-                    bool is_first = true;
+
+                    uint32_t pointer = 0,
+                             real_size = x->tuple_map.size(),
+                             size = x->tuple_map.size(),
+                             prev_size = 0;
+
                     while (y != x->tuple_map.end())
                     {
-                        uint32_t pointer = 0,
-                                 size = x->tuple_map.size();
+                        // one block
+                        pointer = 0;
+                        size = real_size - prev_size;
+                        if (size * (4 + y->second->size) > block_size)
+                        {
+                            size = block_size / (4 + y->second->size);
+                            prev_size += size;
+                        }
 
                         file.write(reinterpret_cast<char*>(&x->table_type), 1);
                         pointer += 1;
-                        if (is_first)
-                        {
-                            file.write(reinterpret_cast<char*>(&size), 4);
-                            pointer += 4;
-                        }
+                        file.write(reinterpret_cast<char*>(&size), 4);
+                        pointer += 4;
 
                         bit_blocks.set(num_of_bl);
                         pointers.push_back(num_of_bl + 1);
                         num_of_bl++;
 
                         uint32_t tup_size = y->second->size;
+
                         for (; pointer < block_size && y != x->tuple_map.end(); 
                                 y++, pointer += (4 + tup_size))
                         {
@@ -98,8 +107,6 @@ void db_full_write (Database& db)
                             file.write(membl, block_size - pointer);
                             delete [] membl;
                         }
-                        
-                        is_first = false;
                     }
 
                     x->pointers = pointers;

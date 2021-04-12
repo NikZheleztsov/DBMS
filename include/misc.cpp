@@ -249,6 +249,22 @@ void parsing_in (std::vector<std::string> all_words)
             return where_col_num;
     };
 
+    auto check_table = [] (std::string name)->int8_t
+    {
+        int8_t where_tb_num = 0;
+        for (auto x : current_db->tb_vec)
+        {
+            if (x->table_name == name)
+                break;
+            where_tb_num++;
+        }
+
+        if (where_tb_num == current_db->tb_vec.size())
+            return -1;
+        else 
+            return where_tb_num;
+    };
+
     if (all_words.size() == 2)
     {
         if (all_words[0] == "show")
@@ -280,9 +296,7 @@ void parsing_in (std::vector<std::string> all_words)
                 try {
                     if (current_db != nullptr)
                     {
-                        Database* temp = current_db;
-                        db_full_write(*current_db);
-                        delete temp;
+                        delete current_db;
                         current_db = nullptr;
                     }
 
@@ -412,7 +426,8 @@ void parsing_in (std::vector<std::string> all_words)
                                     val.end(), ' '), val.end());
 
                         // parsing of (...)
-                        for (size_t pos = 0, prev_pos = 0; (pos = val.find(',', prev_pos + 1)) 
+                        for (size_t pos = 0, prev_pos = 0; 
+                                (pos = val.find(',', prev_pos + 1)) 
                                 && prev_pos != -1; prev_pos = pos)
                         {
                             std::string temp;
@@ -495,6 +510,12 @@ void parsing_in (std::vector<std::string> all_words)
                     return;
                 }
 
+                if (all_words[2] == "inforamtion_schema")
+                {
+                    std::cout << "It is frobidden to delete from this database\n";
+                    return;
+                }
+
                 bool is_ok = false;
                 int i = -1;
                 for (auto x : current_db->tb_vec)
@@ -513,7 +534,8 @@ void parsing_in (std::vector<std::string> all_words)
                     size_t eq_pos = all_words[4].find('=');
                     if (eq_pos != std::string::npos)
                     {
-                        std::string arg = all_words[4].substr(eq_pos + 1, all_words[4].size() - eq_pos - 1);
+                        std::string arg = all_words[4].substr
+                            (eq_pos + 1, all_words[4].size() - eq_pos - 1);
                         int id = -1;
                         if (all_words[4].find("id") != std::string::npos)
                         {
@@ -544,7 +566,8 @@ void parsing_in (std::vector<std::string> all_words)
                             current_db->delete_id(i, id);
 
                         } else 
-                            std::cout << "No tuple with " << all_words[4] << " was found\n";
+                            std::cout << "No tuple with " << 
+                                all_words[4] << " was found\n";
                     } else 
                         std::cout << "Wrong delete argument format\n";
                 } else 
@@ -592,6 +615,12 @@ void parsing_in (std::vector<std::string> all_words)
 
     if (all_words.size() > 3 && all_words[0] == "select")
     {
+        if (current_db == nullptr)
+        {
+            std::cout << "No database is used\n";
+            return;
+        }
+
         int num_of_from = 1;
         for (auto str = all_words.begin() + 1; str != all_words.end(); ++str)
         {
@@ -659,12 +688,12 @@ void parsing_in (std::vector<std::string> all_words)
         bool is_sort = false, dir = false, is_write=false;
         int8_t order_col = -1;
 
-        // parsing of where
         if (all_words.size() > num_of_from + 2)
         {
             case_sens(all_words[num_of_from + 2]);
             int num_of_end = num_of_from + 1;
 
+            // parsing of where
             if (all_words[num_of_end + 1] == "where")
             {
                 if (all_words.size() < num_of_end + 3)
@@ -681,10 +710,8 @@ void parsing_in (std::vector<std::string> all_words)
                     if (pos == std::string::npos)
                         pos = all_words[num_of_end + 2].find(signs[i]);
                     else
-                    {
-                        i--;
                         break;
-                    }
+                i--;
 
                 if (pos == std::string::npos)
                 {
@@ -701,50 +728,56 @@ void parsing_in (std::vector<std::string> all_words)
                     std::cout << "Unknown column name\n";
                     return;
                 }
-                
+
                 cond = all_words[num_of_end + 2].substr(pos + 1);
-                
+
+                // unquote
+                std::stringstream in (cond);
+                in >> std::quoted(cond, '\'');
+
                 num_of_end +=2;
-            }
-
-            if (all_words[num_of_end + 1] == "order")
-            {
-                if (all_words.size() < num_of_end + 5)
-                {
-                    std::cout << "Unknown command\n";
-                    return;
-                }
-
-                is_sort = true;
-                case_sens(all_words[num_of_end + 2]);
-                case_sens(all_words[num_of_end + 4]);
-
-                if (all_words[num_of_end + 2] == "by")
-                {
-                   order_col = check_column(table_num, all_words[num_of_end + 3]);
-                   if (order_col == -1)
-                   {
-                       std::cout << "Unknown column name\n";
-                       return;
-                   }
-
-                   dir = (all_words[num_of_end + 4] == "asc");
-                }
-
-                num_of_end +=4;
             }
 
             if (all_words.size() > num_of_end + 1)
             {
-                case_sens(all_words[num_of_end + 1]);
-                if (all_words[num_of_end + 1] == "write")
-                    is_write = true;
-                else {
-                    std::cout << "Unknown command \n";
-                    return;
+                if (all_words[num_of_end + 1] == "order")
+                {
+                    if (all_words.size() < num_of_end + 5)
+                    {
+                        std::cout << "Unknown command\n";
+                        return;
+                    }
+
+                    is_sort = true;
+                    case_sens(all_words[num_of_end + 2]);
+                    case_sens(all_words[num_of_end + 4]);
+
+                    if (all_words[num_of_end + 2] == "by")
+                    {
+                        order_col = check_column(table_num, all_words[num_of_end + 3]);
+                        if (order_col == -1)
+                        {
+                            std::cout << "Unknown column name\n";
+                            return;
+                        }
+
+                        dir = (all_words[num_of_end + 4] == "asc");
+                    }
+
+                    num_of_end +=4;
+                }
+
+                if (all_words.size() > num_of_end + 1)
+                {
+                    case_sens(all_words[num_of_end + 1]);
+                    if (all_words[num_of_end + 1] == "write")
+                        is_write = true;
+                    else {
+                        std::cout << "Unknown command \n";
+                        return;
+                    }
                 }
             }
-
         }
 
         try {
@@ -752,10 +785,138 @@ void parsing_in (std::vector<std::string> all_words)
                     is_sort, order_col, dir, is_write);
         } catch (...)
         {
-            std::cout << "Error\n";
+            std::cout << "Error inside kernel\n";
         }
+
+        // smth with files
+    } else if (all_words.size() > 3 && all_words[0] == "update")
+    {
+        if (current_db == nullptr)
+        {
+            std::cout << "No database is used\n";
+            return;
+        }
+
+        case_sens(all_words[2]);
+        int table_num = check_table(all_words[1]);;
+        if (all_words[2] != "set" && table_num  == -1)
+        {
+            std::cout << "Unknown command or table name\n";
+            return;
+        }
+        
+        int num_of_where = 3;
+        for (int i = 3; i < all_words.size(); i++)
+        {
+            std::string temp = all_words[i];
+            case_sens(temp);
+            if (temp == "where")
+                break;
+            num_of_where++;
+        }
+
+        int8_t id = -1;
+        // parsing of argument
+        size_t eq_pos = all_words[num_of_where + 1].find('=');
+        if (eq_pos != std::string::npos)
+        {
+            std::string arg = all_words[num_of_where + 1].substr
+                (eq_pos + 1, all_words[num_of_where + 1].size() - eq_pos - 1);
+            if (all_words[num_of_where + 1].find("id") != std::string::npos)
+            {
+                try {
+                    id = std::stoi(arg);
+                } catch (...) {
+                    std::cout << "Wrong id format\n";
+                    return;
+                }
+
+                if (id > current_db->tb_vec[table_num]->tuple_map.size() - 1)
+                    id = -1;
+
+            } else if (all_words[num_of_where + 1].find("name") 
+                    != std::string::npos)
+            {
+                std::stringstream in (arg);
+                std::string no_quo;
+                in >> std::quoted(no_quo, '\'');
+                id = current_db->get_id(table_num, no_quo);
+
+            } else { 
+                std::cout << "Unknown update argument\n";
+                return;
+            }
+        }
+
+        if (id != -1)
+        {
+            tuple* old_one = current_db->get_tuple(table_num, id);
+            if (old_one == nullptr)
+            {
+                std::cout << "Error while getting tuple\n";
+                return;
+            }
+
+            auto data = old_one->get_data();
+
+            std::vector<std::string> l1 (data.first);
+            std::vector<uint32_t> l2 (data.second);
+
+            for (auto i = all_words.begin() + 3; 
+                    i != all_words.begin() + num_of_where; i++)
+            {
+                int pos = i->find('=');
+                std::string col_name = i->substr(0, pos);
+                int col_num = check_column(table_num, col_name);
+                if (col_num == -1)
+                {
+                    std::cout << "Unknown column name\n";
+                    return;
+                }
+
+                std::string new_value = i->substr(pos + 1);
+                if (new_value[0] == '\'')
+                {
+                    std::stringstream in (new_value);
+                    in >> std::quoted(new_value, '\'');
+                    if (current_db->tb_vec[table_num]->data_types[col_num - 1] != "str")
+                    {
+                        std::cout << "Wrong data format\n";
+                        return;
+                    }
+
+                    l1[col_num - 1] = new_value;
+
+                } else {
+
+                    try {
+
+                        if (current_db->tb_vec[table_num]->data_types[col_num - 1] != "int")
+                        {
+                            std::cout << "Wrong data format\n";
+                            return;
+                        }
+
+                        l2[col_num - l1.size() - 2] = std::stoi(new_value);
+                    } catch (...) {
+                        std::cout << "Wrong new value format\n";
+                        return;
+                    }
+                }
+
+                try {
+                    current_db->delete_id(table_num, id);
+                    current_db->insert(l1, l2, table_num, id);
+                } catch (...) {
+                    std::cout << "Error while updating tuple\n";
+                    return;
+                }
+            }
+
+        } else 
+            std::cout << "Wrong id\n";
     } 
-} 
+}
 
 void parsing (std::vector<std::string> w) // for inside use only
 {
@@ -787,6 +948,7 @@ void parsing (std::string& answ)
 
         std::string temp = answ.substr(prev_pos, pos - prev_pos);
 
+
         // all ( ... ) to one word
         if (!temp.empty())
         {
@@ -795,10 +957,23 @@ void parsing (std::string& answ)
                 if (pos != -1)
                     temp += answ.substr(pos + 1);
                 pos = -1;
+
+            } else if (pos != -1 && temp.find('\'') != std::string::npos)
+            {
+                int temp_pos = answ.find('\'', pos);
+                temp += answ.substr(pos, temp_pos - pos + 1);
+                pos = temp_pos + 1;
+
+            } else {
+
+                int pos_of_comma = 0;
+                while ((pos_of_comma = temp.find(',')) != std::string::npos)
+                    temp.erase(pos_of_comma);
             }
         }
 
-        all_words.push_back(temp);
+        if (temp != "")
+            all_words.push_back(temp);
     }
 
     // delete ';' in the last word

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <utility>
 #include <iomanip>
 // #include "databases.h"
 
@@ -24,6 +25,8 @@ public:
         size(s), name(n), for_key(key) {}
     virtual void write(std::fstream& out) = 0;
     virtual std::vector<std::string> print () const = 0;
+    virtual std::pair<std::vector<std::string>,
+            std::vector<uint32_t>> get_data() const = 0;
 
     friend class Table;
     friend class DB_table;
@@ -65,6 +68,14 @@ public:
         out.write(bl, 32 - name.size());
         delete [] bl;
         out.write(reinterpret_cast<char*>(&schema_type), 1);
+    }
+
+    std::pair<std::vector<std::string>,
+        std::vector<uint32_t>> get_data() const override
+    {
+        std::vector<std::string> l1 = {name};
+        std::vector<uint32_t> l2 = {schema_type};
+        return std::make_pair(l1,l2);
     }
 
     std::vector<std::string> print () const override
@@ -171,6 +182,14 @@ public:
         out.write(reinterpret_cast<char*>(&is_spec), 1);
     }
 
+    std::pair<std::vector<std::string>,
+        std::vector<uint32_t>> get_data() const override
+    {
+        std::vector<std::string> l1 = {name, name_nuc};
+        std::vector<uint32_t> l2 = {num_dep, is_spec};
+        return std::make_pair(l1,l2);
+    }
+
     std::vector<std::string> print () const override
     {
         std::vector<std::string> out = 
@@ -214,6 +233,15 @@ public:
         out.write(reinterpret_cast<char*>(&for_key), 4);
     }
 
+    std::pair<std::vector<std::string>,
+        std::vector<uint32_t>> get_data() const override
+    {
+        uint32_t key = for_key;
+        std::vector<std::string> l1 = {name};
+        std::vector<uint32_t> l2 = {key};
+        return std::make_pair(l1,l2);
+    }
+
     std::vector<std::string> print () const override
     {
         std::vector<std::string> out = 
@@ -254,6 +282,15 @@ public:
         delete [] bl;
 
         out.write(reinterpret_cast<char*>(&for_key), 4);
+    }
+
+    std::pair<std::vector<std::string>,
+        std::vector<uint32_t>> get_data() const override
+    {
+        uint32_t key = for_key;
+        std::vector<std::string> l1 = {name};
+        std::vector<uint32_t> l2 = {key};
+        return std::make_pair(l1,l2);
     }
 
     std::vector<std::string> print () const override
@@ -300,6 +337,15 @@ public:
 
         out.write(reinterpret_cast<char*>(&dis_teach_num), 4);
         out.write(reinterpret_cast<char*>(&for_key), 1);
+    }
+
+    std::pair<std::vector<std::string>,
+        std::vector<uint32_t>> get_data() const override
+    {
+        uint32_t key = for_key;
+        std::vector<std::string> l1 = {name};
+        std::vector<uint32_t> l2 = {dis_teach_num, key};
+        return std::make_pair(l1,l2);
     }
 
     std::vector<std::string> print () const override

@@ -40,8 +40,6 @@ to number of exercise\n\n";
 
         if (answ != "quit" && answ != "q")
             parsing(answ);
-
-        // std::cout << answ;
     }
 
     return 0;
