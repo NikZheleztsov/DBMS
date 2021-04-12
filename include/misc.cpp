@@ -4,7 +4,6 @@
 #include <iostream>
 #include "databases.h"
 #include "fs_work.h"
-#include "tree.h"
 #include "t_print.h"
 #include <algorithm>
 
@@ -233,6 +232,23 @@ void parsing (std::vector<std::string> w);
 
 void parsing_in (std::vector<std::string> all_words)
 {
+    // replace all with lambda
+    auto check_column = [] (uint8_t table_num, std::string name)->int8_t
+    {
+        int8_t where_col_num = 0;
+        for (auto x : current_db->tb_vec[table_num]->col_names)
+        {
+            if (x == name)
+                break;
+            where_col_num++;
+        }
+
+        if (where_col_num == current_db->tb_vec[table_num]->col_names.size())
+            return -1;
+        else 
+            return where_col_num;
+    };
+
     if (all_words.size() == 2)
     {
         if (all_words[0] == "show")
@@ -576,27 +592,29 @@ void parsing_in (std::vector<std::string> all_words)
 
     if (all_words.size() > 3 && all_words[0] == "select")
     {
-        /*
-        case_sens(all_words[1]);
-        case_sens(all_words[2]);
-
-        // check if table exists
-        if (current_db == nullptr)
+        int num_of_from = 1;
+        for (auto str = all_words.begin() + 1; str != all_words.end(); ++str)
         {
-            std::cout << "No database is used\n";
-            return;
+            std::string temp = *str;
+            case_sens(temp);
+            if (temp == "from")
+                break;
+            num_of_from++;
         }
 
+        // check of table
         bool is_ok = false;
-        int i = -1;
+        // !!!
+        int table_num = 0;
         for (auto x : current_db->tb_vec)
         {
-            i++;
-            if (x->table_name == all_words[3])
+            if (x->table_name == all_words[num_of_from + 1])
             {
                 is_ok = true;
                 break;
             }
+
+            table_num++;
         }
 
         if (!is_ok)
@@ -605,84 +623,137 @@ void parsing_in (std::vector<std::string> all_words)
             return;
         }
 
-        if (all_words.size() == 4 && all_words[1] == "*" 
-                && all_words[2] == "from")
-        {
-            current_db->select(i);
+        // !!!
+        std::vector<int8_t> col_out;
 
-        } else if (all_words.size() > 5 && all_words[1] == "*" 
-                && all_words[2] == "from")
-        {
-            case_sens(all_words[4]);
-
-            if (all_words[4] == "where" && 
-                    ((all_words[5].find("name=") != std::string::npos) ||
-                     all_words[5].find("foreign_id=") != std::string::npos))
+        if (all_words[1] == "*")
+            col_out.push_back(-1);
+        else {
+            for (auto str = all_words.begin() + 1; 
+                    str != all_words.begin() + num_of_from; ++str)
             {
-                auto pos = all_words[5].find('=');
-                std::string arg = all_words[5].substr(pos + 1);
-
-                if (all_words.size() == 10)
+                int num_of_col = 0;
+                for (auto x : current_db->tb_vec[table_num]->col_names)
                 {
-                    case_sens(all_words[6]);
-                    case_sens(all_words[7]);
-                    case_sens(all_words[9]);
-                    if (all_words[6] == "order" && all_words[7] == "by"
-                            && (all_words[9] == "asc" || all_words[9] == "desc"))
+                    if (x == *str)
+                        break;
+                    num_of_col++;
+                }
+
+                if (num_of_col == current_db->tb_vec[table_num]->col_names.size())
+                {
+                    std::cout << "Unknown column name\n";
+                    return;
+                }
+
+                col_out.push_back(num_of_col);
+            }
+        }
+
+        // !!!
+        int8_t where_col_num = -1;
+        char sign = ' ';
+        std::string cond = "";
+
+        // !!!
+        bool is_sort = false, dir = false, is_write=false;
+        int8_t order_col = -1;
+
+        // parsing of where
+        if (all_words.size() > num_of_from + 2)
+        {
+            case_sens(all_words[num_of_from + 2]);
+            int num_of_end = num_of_from + 1;
+
+            if (all_words[num_of_end + 1] == "where")
+            {
+                if (all_words.size() < num_of_end + 3)
+                {
+                    std::cout << "Unknown command\n";
+                    return;
+                }
+
+                // find any sign
+                auto pos = std::string::npos;
+                char signs [] = {'=', '>', '<'};
+                int i = 0;
+                for (; i < 3; i++)
+                    if (pos == std::string::npos)
+                        pos = all_words[num_of_end + 2].find(signs[i]);
+                    else
                     {
-                        bool is_ok = false;
-                        for (auto x : current_db->tb_vec[i]->col_names)
-                            if (x == all_words[8])
-                            {
-                                is_ok = true;
-                                break;
-                            }
-
-                        if (is_ok)
-                        {
-                            bool dir = (all_words[9] == "asc");
-
-                            if (all_words[5].find("name=") != std::string::npos)
-                                current_db->select(i, arg, -1, true, all_words[8], dir);
-                            else 
-                                current_db->select(i, "", std::stoi(arg), true, all_words[8], dir);
-
-                        } else 
-                            std::cout << "Unknown column name\n";
+                        i--;
+                        break;
                     }
 
-                } else if (all_words[5].find("name=") != std::string::npos)
-                    {
-                        current_db->select(i, arg);
-                    } else 
-                        current_db->select(i, "", std::stoi(arg));
-
-            } else if (all_words[4] == "order")
-            {
-                case_sens(all_words[5]);
-                case_sens(all_words[7]);
-                if (all_words[5] == "by" && (all_words[7] == "asc" || all_words[7] == "desc"))
+                if (pos == std::string::npos)
                 {
-                    bool dir = (all_words[7] == "asc");
+                    std::cout << "Unknown sign\n";
+                    return;
+                }
 
-                    bool is_ok = false;
-                    for (auto x : current_db->tb_vec[i]->col_names)
-                        if (x == all_words[6])
-                        {
-                            is_ok = true;
-                            break;
-                        }
+                sign = signs[i];
+                auto col_name = all_words[num_of_end + 2].substr(0, pos);
 
-                    if (is_ok)
-                        current_db->select(i, "", -1, true, all_words[6], dir);
-                    else 
-                        std::cout << "Unknown column name\n";
+                where_col_num = check_column(table_num, col_name);
+                if (where_col_num == current_db->tb_vec[table_num]->col_names.size())
+                {
+                    std::cout << "Unknown column name\n";
+                    return;
+                }
+                
+                cond = all_words[num_of_end + 2].substr(pos + 1);
+                
+                num_of_end +=2;
+            }
+
+            if (all_words[num_of_end + 1] == "order")
+            {
+                if (all_words.size() < num_of_end + 5)
+                {
+                    std::cout << "Unknown command\n";
+                    return;
+                }
+
+                is_sort = true;
+                case_sens(all_words[num_of_end + 2]);
+                case_sens(all_words[num_of_end + 4]);
+
+                if (all_words[num_of_end + 2] == "by")
+                {
+                   order_col = check_column(table_num, all_words[num_of_end + 3]);
+                   if (order_col == -1)
+                   {
+                       std::cout << "Unknown column name\n";
+                       return;
+                   }
+
+                   dir = (all_words[num_of_end + 4] == "asc");
+                }
+
+                num_of_end +=4;
+            }
+
+            if (all_words.size() > num_of_end + 1)
+            {
+                case_sens(all_words[num_of_end + 1]);
+                if (all_words[num_of_end + 1] == "write")
+                    is_write = true;
+                else {
+                    std::cout << "Unknown command \n";
+                    return;
                 }
             }
-                
-        } else
-            std::cout << "Unknown command\n";
-        */
+
+        }
+
+        try {
+            current_db->select(table_num,col_out, where_col_num, sign, cond,
+                    is_sort, order_col, dir, is_write);
+        } catch (...)
+        {
+            std::cout << "Error\n";
+        }
     } 
 } 
 

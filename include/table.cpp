@@ -44,6 +44,7 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
         out.push_back(tup);
     }
 
+    ///////////////////////////////////////////////////////
     if (col_out[0] != -1)
     {
         for (auto x : out)
@@ -62,9 +63,10 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
 
             // deleting
             for (auto y : col_del)
-                out.erase(std::find(out.begin(), out.end(), y));
+                x.erase(x.begin() + y);
         }
     }
+    ///////////////////////////////////////////////////////
 
     // need to catch all exceptions !!!
     if (where_col_num != -1)
@@ -74,7 +76,7 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
             case '=':
                 out.erase(std::remove_if(out.begin(), out.end(), 
                             [&where_col_num, &cond] (std::vector<std::string>& a) {
-                        return !(a[where_col_num] == cond);
+                           return !(a[where_col_num] == cond);
                             }));
                 break;
 

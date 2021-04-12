@@ -10,6 +10,8 @@ extern uint32_t block_size;
 
 class Database 
 {
+    int8_t change_tuple (uint8_t tb_num, uint32_t key, tuple* new_tup);
+
 protected:
 
     // -1 = custom database
@@ -39,7 +41,6 @@ public:
             bool is_sort = false, int8_t col = -1, bool dir = false,
             bool is_write = false);
 
-    int8_t change_tuple (uint8_t tb_num, uint32_t key, tuple* new_tup);
 
     void rename (std::string new_name);
 
