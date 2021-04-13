@@ -33,7 +33,6 @@ void T_print::push_header (std::vector<std::string> names,
             header.push_back(std::make_pair(x, x.size()));
         }
     }
-
 }
 
 
@@ -53,7 +52,7 @@ void T_print::print()
     std::cout << '|'; 
     for (auto x : header )
     {
-        std::cout << ' ' << std::setfill(' ') 
+        std::cout << ' ' << std::setfill(' ') << std::left
              << std::setw(x.second) << x.first << ' ' << '|';
     }
     std::cout << std::endl;
@@ -66,7 +65,7 @@ void T_print::print()
 
         for (int i = 0; i < x.size(); i++)
         {
-            std::cout << std::setfill(' ') <<
+            std::cout << std::setfill(' ') << std::left <<
                 std::setw(header[i].second + 1) << x[i] << " |";
         }
 

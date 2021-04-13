@@ -2,7 +2,7 @@
 #define TABLE_H
 #include <vector>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include "tuple.h"
 
 class Database;
@@ -18,8 +18,7 @@ protected:
     // <= 32 bytes
     std::vector <uint8_t> pointers;
     uint32_t row_num = 0;
-    std::vector<std::string> data_types;
-    std::unordered_map<uint32_t, tuple*> tuple_map;
+    std::map<uint32_t, tuple*> tuple_map;
 
     Table () : pointers(128) {};
 
@@ -28,6 +27,7 @@ public:
     uint8_t table_type;
     std::string table_name;
     std::vector <std::string> col_names;
+    std::vector<std::string> data_types;
 
     virtual void insert (std::vector<std::string>,
                          std::vector<uint32_t>, int32_t) = 0;

@@ -1,4 +1,3 @@
-#include "databases.h"
 #include "misc.h"
 
 /* Db types:
@@ -16,9 +15,8 @@ int main ()
 {
     check_for_init();
     std::cout << "Welcome to DBMS (pre-alpha). \n\
-It`s not ready yet. However, all tasks were done.\n\
-Print 'help' in order to get commands, corresponding\n\
-to number of exercise\n\n";
+Type 'help' for more information\n\
+Use 'q' or 'quit' in order to exit\n\n";
     std::string answ = "";
     while (answ != "quit" && answ != "q")
     { 
@@ -39,7 +37,16 @@ to number of exercise\n\n";
         }
 
         if (answ != "quit" && answ != "q")
+        {
             parsing(answ);
+
+        } else {
+
+            if (current_db != nullptr)
+                current_db->write();
+            if (db != nullptr)
+                db->write();
+        }
     }
 
     return 0;

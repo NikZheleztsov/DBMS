@@ -13,9 +13,13 @@
 #include "t_print.h"
 #include <climits>
 #include "table.h"
+#include <filesystem>
 
+namespace fs = std::filesystem;
 class Database;
 extern Database* current_db;
+extern fs::path root;
+extern std::string db_dir;
 
 void Table::select(std::vector<int8_t> col_out, // columns which have to be printed
         int8_t where_col_num, char sign, std::string cond,
@@ -104,6 +108,10 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
                 });
     }
 
+    std::vector<uint32_t> keys;
+    for (auto x : out)
+        keys.push_back(std::stoi(x[0]));
+
     // delete some columns
     auto col_names_copy = col_names;
     ///////////////////////////////////////////////////////
@@ -143,13 +151,36 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
         tb.print();
     }
 
-    if (is_write && table_type == 2)
+    // don't know why do we need it
+    if (is_write)
     {
-        // writing to a new file
-    } else if (is_write) {
-        std::cout << "Unable to write this type of sample!\n\
-            It has to be faculties table\n";
-        return;
+        std::string name = "Saved_sample_0";
+        int i = 1;
+        while (fs::exists(root/db_dir/name))
+        {
+            name.pop_back();
+            name += std::to_string(i);
+            i++;
+        }
+
+        Database* write_db = new Database (current_db->db_type, name, 1);
+        for (auto x : keys)
+        {
+            int tb_num = 0;
+            for (auto y : current_db->tb_vec)
+            {
+                if (y->table_name == table_name)
+                    break;
+
+                tb_num++;
+            }
+
+            tuple* old_one = tuple_map.find(x)->second;;
+            auto data = old_one->get_data();
+            write_db->insert (data.first, data.second, tb_num);
+        }
+
+        delete write_db;
     }
 }
 
@@ -315,10 +346,14 @@ void Dis_table::insert (std::vector<std::string> l1,
         case 5:
             if (!current_db->tb_vec[1]->tuple_map.contains(l2[1]))
                 throw std::invalid_argument("Wrong foreign key");
+            else
+                break;
 
         case 6: 
             if (!current_db->tb_vec[3]->tuple_map.contains(l2[1]))
                 throw std::invalid_argument("Wrong foreign key");
+            else
+                break;
     }
 
     if (force_id == -1)

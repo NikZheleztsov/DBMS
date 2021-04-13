@@ -6,6 +6,7 @@
 #include "fs_work.h"
 #include "t_print.h"
 #include <algorithm>
+#include <boost/range/combine.hpp>
 
 namespace fs = std::filesystem;
 uint32_t block_size = 1024;
@@ -195,6 +196,7 @@ void describe_table (std::string name)
         T_print tb;
         uint8_t max_w = name.size() + 8;
         std::vector<std::string> names;
+        std::vector<std::string> data_types = {"int"};
 
         for (auto x : current_db->tb_vec[i]->col_names)
         {
@@ -203,9 +205,18 @@ void describe_table (std::string name)
                 max_w = x.size();
         }
 
-        tb.push_header({name + " columns"}, {max_w});
-        for (auto x : names)
-            tb.push_tuple({x});
+        for (auto x : current_db->tb_vec[i]->data_types)
+        {
+            data_types.push_back(x);
+        }
+
+        tb.push_header({"Columns", "Types"}, {max_w, 5});
+        for (auto x : boost::combine(names, data_types))
+        {
+            std::string n, t;
+            boost::tie(n, t) = x;
+            tb.push_tuple({n, t});
+        }
 
         tb.print();
 
@@ -215,7 +226,94 @@ void describe_table (std::string name)
 
 void help () 
 {
-    std::cout << "This is some kind of documentation\n";
+
+    {
+        T_print tb;
+        tb.push_header({"DBMS Guide"}, {52});
+        tb.push_tuple({" DBMS - special-purpose (universities) database"});
+        tb.push_tuple({" management system. The work is still in progress."});
+        tb.push_tuple({" "});
+        tb.push_tuple({" All commands are case insensitive (but not names!)"});
+        tb.push_tuple({" Commands are also have to end with semicolon (';')"});
+        tb.push_tuple({" Here are several guide aliases for custom values:"});
+        tb.push_tuple({" <db> - database name, <tb> - table name, <cl> - "});
+        tb.push_tuple({" column name, <val> - value, <sgn> - sign (=|>|<)."});
+        tb.print();
+    }
+
+    std::cout << std::endl;
+
+    {
+        T_print tb;
+        tb.push_header({"Commands", "Description"}, {21, 28});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" SHOW DATABASES"," -> list all databases"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" USE <db>", " -> use the <db> as the"});
+        tb.push_tuple({" ", "    current database for"});
+        tb.push_tuple({" ", "    subsequent commands"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" SHOW TABLES", " -> list all tables in the"});
+        tb.push_tuple({" ", "    current database"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" DESCRIBE <tb>", " -> provide info about"});
+        tb.push_tuple({" ", "    columns in a table"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" CREATE DATABASE <db>", " -> create a database"});
+        tb.push_tuple({" (type=hybrid(common))", "    with a given name"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" DROP DATABASE <db>", " -> delete the database"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" RENAME DATABASE <db>"," -> change a database's"});
+        tb.push_tuple({" TO <new_db>", "    name"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" INSERT <tb> VALUES ", " -> insert values into"});
+        tb.push_tuple({" (<val>, ...)", "    table. All string have to"});
+        tb.push_tuple({" ", "    be quoted. You don't have"});
+        tb.push_tuple({" ", "    to insert primary id"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" DELETE FROM <tb>", " -> delete tuple with a"});
+        tb.push_tuple({" WHERE id(name)=<val>", "    given id/name"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" UPDATE <tb> set", " -> replace chosen columns"});
+        tb.push_tuple({" <cl>=<val>, ... ", "    with new values in a row"});
+        tb.push_tuple({" WHERE id(name)=<val>", "    where id/name = <val>"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" SELECT <cl>, ... (*)", " -> retrive rows selected"});
+        tb.push_tuple({" FROM <tb> [WHERE <cl>", "    from one table. See"});
+        tb.push_tuple({" <sgn><val> ORDER BY", "    example for more info"});
+        tb.push_tuple({" <cl> ASC(DESC) WRITE]", ""});
+        tb.push_tuple({" ", " "});
+        tb.print();
+
+    }
+    
+    std::cout << std::endl << "Need to be replaced with JOIN & COUNT():\n";
+
+    {
+        T_print tb;
+        tb.push_header({"Commands", "Description"}, {21, 28});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" disciplines_num <val>", " -> provide a number of"});
+        tb.push_tuple({" ", "    disciplines taught at the"});
+        tb.push_tuple({" ", "    faculty name of which "});
+        tb.push_tuple({" ", "    = <val>"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" which_faculty <val>", " -> provide a name of"});
+        tb.push_tuple({" ", "    faculty where discipline "});
+        tb.push_tuple({" ", "    with a <val> name is "});
+        tb.push_tuple({" ", "    being taught"});
+        tb.print();
+    }
+
+    std::cout << std::endl << "Examples of command use: \n\n";
+    std::cout << "DBMS [(MGTU)]> " << "CREATE DATABASE MGTU (type=hybrid);" << std::endl;
+    std::cout << "DBMS [(MGTU)]> " << "INSERT faculties VALUES ('Special Machinery', 'NPO Machinery', 17, 1);" << std::endl;
+    std::cout << "DBMS [(MGTU)]> " << "UPDATE faculties SET fac_name='New name', nuc_name='New NUC' WHERE id=0;" << std::endl;
+    std::cout << "DBMS [(MGTU)]> " << "SELECT * FROM faculties;" << std::endl;
+    std::cout << "DBMS [(MGTU)]> " << "SELECT fac_id, fac_name FROM faculties \
+WHERE num_dep>7 ORDER BY nuc_name ASC;" << std::endl << std::endl;
+
 }
 
 void case_sens (std::string& str)
@@ -296,8 +394,8 @@ void parsing_in (std::vector<std::string> all_words)
                 try {
                     if (current_db != nullptr)
                     {
+                        current_db->write();
                         delete current_db;
-                        current_db = nullptr;
                     }
 
                     current_db = db_meta_read(all_words[1]);
@@ -313,6 +411,87 @@ void parsing_in (std::vector<std::string> all_words)
         } else if (all_words[0] == "describe")
         {
                 describe_table(all_words[1]);
+
+        } else if (all_words[0] == "disciplines_num") //should be done with JOIN & COUNT (...)
+        {
+            if (!(current_db == nullptr && current_db->db_type == 0))
+            {
+
+                std::stringstream in (all_words[1]);
+                in >> std::quoted(all_words[1], '\'');
+
+                auto id = current_db->get_id(0, all_words[1]);
+                if (id == -1)
+                {
+                    std::cout << "Unable to find faculty\n";
+                    return;
+                }
+
+                std::vector<uint32_t> dep_keys;
+
+                for (auto x : current_db->tb_vec[1]->tuple_map)
+                    if (x.second->for_key == id)
+                        dep_keys.push_back(x.first);
+
+                int dis_num = 0;
+                for (auto x : current_db->tb_vec[2]->tuple_map)
+                    for (auto y : dep_keys)
+                        if (x.second->for_key == y)
+                            dis_num++;
+
+                if (current_db->db_type == 2)
+                {
+                    std::vector<uint32_t> borg_keys;
+                    for (auto x : current_db->tb_vec[3]->tuple_map)
+                        if (x.second->for_key == id)
+                            borg_keys.push_back(x.first);
+
+                    for (auto x : current_db->tb_vec[4]->tuple_map)
+                        for (auto y : borg_keys)
+                            if (x.second->for_key == y)
+                                dis_num++;
+                }
+
+                std::cout << "Number of disciplines on " << 
+                    all_words[1] << " -> " << dis_num << std::endl;
+
+            } else {
+                std::cout << "Wrong database is used\n";
+                return;
+            }
+
+        } else if (all_words[0] == "which_faculty")
+        {
+
+            std::stringstream in (all_words[1]);
+            in >> std::quoted(all_words[1], '\'');
+
+            auto id_dep = current_db->get_id(2, all_words[1]);
+            int32_t id_borg = -1;
+
+            if (id_dep == -1 && current_db->db_type == 2)
+                id_borg = current_db->get_id(4, all_words[1]);
+
+            if (id_dep == -1 && id_borg == -1)
+            {
+                std::cout << "Unable to find discipline\n";
+                return;
+            }
+            
+            if (id_dep != -1)
+            {
+                tuple* tup = current_db->get_tuple(2, id_dep);
+                tuple* dep = current_db->get_tuple(1, tup->for_key);
+                tuple* fac = current_db->get_tuple(0, dep->for_key);
+                std::cout << "Name of faculty -> " << fac->name;;
+            } else
+            {
+                tuple* tup = current_db->get_tuple(4, id_dep);
+                tuple* borg = current_db->get_tuple(3, tup->for_key);
+                tuple* fac = current_db->get_tuple(0, borg->for_key);
+                std::cout << "Name of faculty -> " << fac->name << std::endl;
+            }
+            
         } else
             std::cout << "Unknown command\n";
 
@@ -421,9 +600,20 @@ void parsing_in (std::vector<std::string> all_words)
                         std::vector<uint32_t> int_val;
                         std::vector<std::string> data_t;
 
-                        // del all ' '
-                        val.erase(std::remove(val.begin(), 
-                                    val.end(), ' '), val.end());
+                        // del all ' ' but not inside quotes
+                        // val.erase(std::remove(val.begin(), 
+                        //            val.end(), ' '), val.end());
+
+                        bool is_quote = false;
+                        for (int i = 0; i < val.size(); i++)
+                        {
+                            if (val[i] == ' ')
+                                if (!is_quote)
+                                    val.erase(i, 1);
+
+                            if (val[i] == '\'')
+                                is_quote = !is_quote;
+                        }
 
                         // parsing of (...)
                         for (size_t pos = 0, prev_pos = 0; 
@@ -476,7 +666,7 @@ void parsing_in (std::vector<std::string> all_words)
                     } else 
                         std::cout << "Wrong value format (e.g. \"('str', 5)\")\n";
                 } else 
-                    std::cout << "Unknown table name";
+                    std::cout << "Unknown table name\n";
             } else
                 std::cout << "Unknown command\n";
         } 
@@ -897,20 +1087,21 @@ void parsing_in (std::vector<std::string> all_words)
                             return;
                         }
 
-                        l2[col_num - l1.size() - 2] = std::stoi(new_value);
+                        l2[col_num - l1.size() - 1] = std::stoi(new_value);
                     } catch (...) {
                         std::cout << "Wrong new value format\n";
                         return;
                     }
                 }
 
-                try {
-                    current_db->delete_id(table_num, id);
-                    current_db->insert(l1, l2, table_num, id);
-                } catch (...) {
-                    std::cout << "Error while updating tuple\n";
-                    return;
-                }
+            }
+
+            try {
+                current_db->delete_id(table_num, id);
+                current_db->insert(l1, l2, table_num, id);
+            } catch (...) {
+                std::cout << "Error while updating tuple\n";
+                return;
             }
 
         } else 
@@ -955,7 +1146,7 @@ void parsing (std::string& answ)
             if (temp[0] == '(')
             {
                 if (pos != -1)
-                    temp += answ.substr(pos + 1);
+                    temp += answ.substr(pos);
                 pos = -1;
 
             } else if (pos != -1 && temp.find('\'') != std::string::npos)

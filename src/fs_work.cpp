@@ -71,14 +71,18 @@ void db_full_write (Database& db)
                              size = x->tuple_map.size(),
                              prev_size = 0;
 
+
+                    auto end = x->tuple_map.begin();
                     while (y != x->tuple_map.end())
                     {
+                        uint32_t tup_size = y->second->size;
                         // one block
                         pointer = 0;
                         size = real_size - prev_size;
-                        if (size * (4 + y->second->size) > block_size)
+
+                        if (size * (4 + tup_size) > (block_size - 5))
                         {
-                            size = block_size / (4 + y->second->size);
+                            size = (block_size - 5) / (4 + tup_size);
                             prev_size += size;
                         }
 
@@ -91,20 +95,27 @@ void db_full_write (Database& db)
                         pointers.push_back(num_of_bl + 1);
                         num_of_bl++;
 
-                        uint32_t tup_size = y->second->size;
+                        for (int i = 0; i < size; i++)
+                            end++;
 
-                        for (; pointer < block_size && y != x->tuple_map.end(); 
-                                y++, pointer += (4 + tup_size))
+                        for (; y != end; y++)
                         {
                             uint32_t key = y->first;
                             file.write(reinterpret_cast<char*>(&key), 4);
                             y->second->write(file);
                         }
 
-                        if (pointer < block_size)
+                        if (file.tellp() > 512 + 128 * db.tb_vec.size() + block_size * num_of_bl)
                         {
-                            char* membl = new char [block_size - pointer];
-                            file.write(membl, block_size - pointer);
+                            std::cout << "Error while writing\n";
+                            return;
+                        }
+
+                        if (file.tellp() < 512 + 128 * db.tb_vec.size() + block_size * num_of_bl)
+                        {
+                            int membl_size = block_size - 5 - size * (4 + tup_size);
+                            char* membl = new char [membl_size];
+                            file.write(membl, membl_size);
                             delete [] membl;
                         }
                     }
