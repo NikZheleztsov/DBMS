@@ -1,0 +1,72 @@
+# Comment starts with '#', and ends with '\n'
+# Script consists of the same commands as the CLI ones
+# Script will stop after the first broken command
+
+CREATE DATABASE MGTU (type=hybrid);
+USE MGTU;
+
+#####################################################
+
+INSERT faculties VALUES ('INFORMATICS', 'IU', 5, 1);
+
+INSERT departments VALUES ('ACS for Flight Vehicles', 0);
+INSERT departments VALUES ('Systems for orientation', 0);
+INSERT departments VALUES ('Telecommunication', 0);
+INSERT departments VALUES ('Cybersecurity', 0);
+INSERT departments VALUES ('Software for Computers', 0);
+
+INSERT disciplines_dep VALUES ('IU_dis_0', 7, 0);
+INSERT disciplines_dep VALUES ('IU_dis_1', 20, 0);
+INSERT disciplines_dep VALUES ('IU_dis_2', 13, 1);
+INSERT disciplines_dep VALUES ('IU_dis_3', 4, 1);
+INSERT disciplines_dep VALUES ('IU_dis_4', 18, 1);
+INSERT disciplines_dep VALUES ('IU_dis_5', 12, 2);
+INSERT disciplines_dep VALUES ('IU_dis_6', 29, 2);
+INSERT disciplines_dep VALUES ('IU_dis_7', 17, 2);
+INSERT disciplines_dep VALUES ('IU_dis_8', 2, 3);
+INSERT disciplines_dep VALUES ('IU_dis_9', 34, 3);
+INSERT disciplines_dep VALUES ('IU_dis_10', 11, 4);
+INSERT disciplines_dep VALUES ('IU_dis_11', 5, 4);
+
+INSERT base_org VALUES ('ALMAZ', 0);
+
+INSERT disciplines_borg VALUES ('almaz_dis_0', 7, 0);
+INSERT disciplines_borg VALUES ('almaz_dis_1', 4, 0);
+INSERT disciplines_borg VALUES ('almaz_dis_2', 9, 0);
+
+######################################################
+
+INSERT faculties VALUES ('Fundamental sciences', 'FN', 3, 0);
+
+INSERT departments VALUES ('Higher Mathematics', 1);
+INSERT departments VALUES ('Physics', 1);
+INSERT departments VALUES ('Chemistry', 1);
+
+INSERT disciplines_dep VALUES ('FN_dis_0', 15, 5);
+INSERT disciplines_dep VALUES ('FN_dis_1', 5, 5);
+INSERT disciplines_dep VALUES ('FN_dis_2', 7, 6);
+INSERT disciplines_dep VALUES ('FN_dis_3', 3, 7);
+INSERT disciplines_dep VALUES ('FN_dis_4', 18, 7);
+
+######################################################
+
+INSERT faculties VALUES ('Power Engineering', 'E', 5, 1);
+
+INSERT departments VALUES ('Rocket Engines', 2);
+INSERT departments VALUES ('Piston Engines', 2);
+INSERT departments VALUES ('Thermophysics', 2);
+INSERT departments VALUES ('Nuclear Reactors', 2);
+INSERT departments VALUES ('Cryogenic Technics', 2);
+
+INSERT disciplines_dep VALUES ('E_dis_0', 18, 8);
+INSERT disciplines_dep VALUES ('E_dis_1', 8, 9);
+INSERT disciplines_dep VALUES ('E_dis_2', 7, 9);
+INSERT disciplines_dep VALUES ('E_dis_3', 3, 10);
+INSERT disciplines_dep VALUES ('E_dis_4', 24, 11);
+INSERT disciplines_dep VALUES ('E_dis_5', 19, 12);
+INSERT disciplines_dep VALUES ('E_dis_6', 6, 12);
+
+INSERT base_org VALUES ('NPO Machinery', 2);
+
+INSERT disciplines_borg VALUES ('Npo_dis_0', 13, 1);
+INSERT disciplines_borg VALUES ('Npo_dis_1', 7, 1);

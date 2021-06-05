@@ -27,10 +27,17 @@ void T_print::push_header (std::vector<std::string> names,
             header.push_back(std::make_pair(n,w));
         }
     } else {
+        /*
         for (auto x : names)
         {
             m_width += x.size() + 3;
             header.push_back(std::make_pair(x, x.size()));
+        } */
+        
+        for (size_t i = 0; i < names.size(); ++i)
+        {
+            m_width += width[i] + 3;
+            header.push_back(std::make_pair(names[i], width[i]));
         }
     }
 }

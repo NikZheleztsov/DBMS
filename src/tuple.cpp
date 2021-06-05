@@ -109,7 +109,7 @@ fac::fac (std::fstream& in) {
     uint32_t num_dep = 0;
     bool spec = false;
     in.read(reinterpret_cast<char*>(&num_dep), 4);
-    in.read(reinterpret_cast<char*>(&spec), 1);
+    in.read(reinterpret_cast<char*>(&spec), sizeof(bool));
     this->num_dep = num_dep;
     is_spec = spec;
 }
@@ -121,13 +121,13 @@ void fac::write(std::fstream& out)
     out.write(bl, 32 - name.size());
     delete [] bl;
 
-    out.write(name_nuc.c_str(), name.size());
+    out.write(name_nuc.c_str(), name_nuc.size());
     bl = new char [32 - name_nuc.size()] ();
     out.write(bl, 32 - name_nuc.size());
     delete [] bl;
 
     out.write(reinterpret_cast<char*>(&num_dep), 4);
-    out.write(reinterpret_cast<char*>(&is_spec), 1);
+    out.write(reinterpret_cast<char*>(&is_spec), sizeof(bool));
 }
 
 std::pair<std::vector<std::string>,
@@ -250,7 +250,7 @@ void dis::write(std::fstream& out)
     delete [] bl;
 
     out.write(reinterpret_cast<char*>(&dis_teach_num), 4);
-    out.write(reinterpret_cast<char*>(&for_key), 1);
+    out.write(reinterpret_cast<char*>(&for_key), 4);
 }
 
 std::pair<std::vector<std::string>,

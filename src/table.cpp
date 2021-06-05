@@ -45,6 +45,7 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
 
             tup.push_back(y);
         }
+
         out.push_back(tup);
     }
 
@@ -133,8 +134,19 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
         for (auto& x : out)
         {
             // deleting
+            int i = 0;
             for (auto y : col_del)
-                x.erase(x.begin() + y);
+            {
+                x.erase(x.begin() + y - i);
+                ++i;
+            }
+        }
+
+        int p = 0;
+        for (auto y : col_del)
+        {
+            max_w.erase(max_w.begin() + y - p);
+            p++;
         }
 
         for (auto y : col_del)

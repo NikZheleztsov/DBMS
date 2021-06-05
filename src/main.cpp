@@ -42,8 +42,11 @@ Use 'q' or 'quit' in order to exit\n\n";
 
         } else {
 
+            std::cout << "Saving databases...\n";
+
             if (current_db != nullptr)
                 current_db->write();
+
             if (db != nullptr)
                 db->write();
         }

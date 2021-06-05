@@ -33,7 +33,7 @@ public:
     friend void db_full_write (Database& db);
     friend void show_databases ();
     friend void check_for_init();
-    friend void parsing_in (std::vector<std::string> all_words);
+    friend int parsing_in (std::vector<std::string> all_words);
 
     virtual ~tuple () {};
 };

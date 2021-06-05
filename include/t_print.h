@@ -6,7 +6,7 @@
 class T_print {
 private:
 
-    size_t m_width = 0;
+    size_t m_width = 0; // width of table 
     std::vector<std::pair<std::string, uint8_t>> header;
     std::vector<std::vector<std::string>> tuples;
 

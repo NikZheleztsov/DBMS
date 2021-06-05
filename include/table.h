@@ -38,7 +38,7 @@ public:
     int32_t get_id (std::string name);
     void delete_tuple (uint32_t id);
 
-    friend void parsing_in (std::vector<std::string>);
+    friend int parsing_in (std::vector<std::string>);
     friend void db_full_write (Database&);
     friend Database* db_meta_read (std::string name);
     friend void show_databases ();

@@ -7,12 +7,14 @@
 #include "t_print.h"
 #include <algorithm>
 #include <boost/range/combine.hpp>
+#include <initializer_list>
 
 namespace fs = std::filesystem;
 uint32_t block_size = 1024;
 fs::path root;
 std::string config_name = ".config",
-            db_dir = ".databases";
+            db_dir = ".databases",
+            scr_dir = "scripts";
 
 extern Database* db;
 extern Database* current_db;
@@ -326,9 +328,10 @@ void case_sens (std::string& str)
     }
 }
 
-void parsing (std::vector<std::string> w);
+int parsing (std::vector<std::string> w);
+int parsing (std::string answ);
 
-void parsing_in (std::vector<std::string> all_words)
+int parsing_in (std::vector<std::string> all_words)
 {
     // replace all with lambda
     auto check_column = [] (uint8_t table_num, std::string name)->int8_t
@@ -365,7 +368,50 @@ void parsing_in (std::vector<std::string> all_words)
 
     if (all_words.size() == 2)
     {
-        if (all_words[0] == "show")
+        if (all_words[0] == "source")
+        {
+            // parsing of script
+            std::cout << "Reading script...\n";
+            std::ifstream script (root/scr_dir/all_words[1]);
+            if (script.is_open())
+            {
+                std::string commands;
+                std::getline (script, commands, '\0');
+                
+                // delete comments 
+                while (commands.find('#') != std::string::npos)
+                {
+                    auto h = commands.find('#');
+                    commands.erase(h, commands.find('\n', h) - h);
+                }
+
+                // delete \n
+                for (auto n = commands.find('\n', 0); n != std::string::npos; n = commands.find('\n', n))
+                    commands.erase(n, 1);
+
+                size_t pos = 0; int ret = 0;
+                auto end = commands.find(';', pos);
+                while (end != std::string::npos)
+                {
+                    ret = parsing(commands.substr(pos, end - pos + 1));
+                    if (ret == -1)
+                    {
+                        std::cout << "Error: " << commands.substr(pos, end - pos +1) << std::endl;
+                        return -1;
+                    }
+
+                    pos = end + 1;
+                    end = commands.find(';', pos);
+                }
+
+                std::cout << "Success!\n";
+
+            } else {
+                std::cout << "Unable to open a file. Aborting...\n";
+                return -1;
+            }
+
+        } else if (all_words[0] == "show")
         {
             case_sens(all_words[1]);
 
@@ -376,8 +422,10 @@ void parsing_in (std::vector<std::string> all_words)
             } else if (all_words[1] == "tables")
             {
                 show_tables();
-            } else 
+            } else {
                 std::cout << "Unknown command\n";        
+                return -1;
+            }
 
         } else if (all_words[0] == "use")
         {
@@ -403,10 +451,13 @@ void parsing_in (std::vector<std::string> all_words)
 
                 } catch (...) {
                     std::cout << "Error while writing/reading database\n";
+                    return -1;
                 }
 
-            } else
+            } else {
                 std::cout << "Unknown name of database\n";
+                return -1;
+            }
 
         } else if (all_words[0] == "describe")
         {
@@ -424,7 +475,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (id == -1)
                 {
                     std::cout << "Unable to find faculty\n";
-                    return;
+                    return -1;
                 }
 
                 std::vector<uint32_t> dep_keys;
@@ -457,7 +508,7 @@ void parsing_in (std::vector<std::string> all_words)
 
             } else {
                 std::cout << "Wrong database is used\n";
-                return;
+                return -1;
             }
 
         } else if (all_words[0] == "which_faculty")
@@ -475,7 +526,7 @@ void parsing_in (std::vector<std::string> all_words)
             if (id_dep == -1 && id_borg == -1)
             {
                 std::cout << "Unable to find discipline\n";
-                return;
+                return -1;
             }
             
             if (id_dep != -1)
@@ -483,7 +534,7 @@ void parsing_in (std::vector<std::string> all_words)
                 tuple* tup = current_db->get_tuple(2, id_dep);
                 tuple* dep = current_db->get_tuple(1, tup->for_key);
                 tuple* fac = current_db->get_tuple(0, dep->for_key);
-                std::cout << "Name of faculty -> " << fac->name;;
+                std::cout << "Name of faculty -> " << fac->name << std::endl;
             } else
             {
                 tuple* tup = current_db->get_tuple(4, id_dep);
@@ -492,8 +543,10 @@ void parsing_in (std::vector<std::string> all_words)
                 std::cout << "Name of faculty -> " << fac->name << std::endl;
             }
             
-        } else
+        } else {
             std::cout << "Unknown command\n";
+            return -1;
+        }
 
     } else if (all_words.size() == 3)
     {
@@ -507,7 +560,7 @@ void parsing_in (std::vector<std::string> all_words)
                     if (all_words[2] == "information_schema")
                     {
                         std::cout << "Forbidden to delete this database\n";
-                        return;
+                        return -1;
                     }
 
                     fs::remove(root/db_dir/all_words[2]);
@@ -527,12 +580,22 @@ void parsing_in (std::vector<std::string> all_words)
                         current_db = nullptr;
                     }
 
-                } else 
+                } else  {
                     std::cout << "Unknown database name\n";
-            } else
+                    return -1;
+                }
+            } else {
                 std::cout << "Unknown command\n";
-        } else 
+                return -1;
+            }
+        } else if (all_words[0] == "create")
+        {
+            all_words.push_back("(type=common)");
+            parsing(all_words);
+        } else {
+            return -1;
             std::cout << "Unknown command\n";
+        }
 
     } else if (all_words.size() == 4)
     {
@@ -543,6 +606,15 @@ void parsing_in (std::vector<std::string> all_words)
             if ( all_words[1] == "database")
             {
                 std::string name = all_words[2];
+
+                // no same db's names
+                for (auto x : db->tb_vec[0]->tuple_map)
+                    if (x.second->name == all_words[2])
+                    {
+                        std::cout << all_words[2] << " is already exist\n";
+                        return -1;
+                    }
+
                 case_sens(all_words[3]);
                 // del all ' ' from (type = ...)
                 all_words[3].erase(std::remove(all_words[3].begin(), 
@@ -560,12 +632,14 @@ void parsing_in (std::vector<std::string> all_words)
                         Database new_db (1, name, true);
                     else if (type == "hybrid")
                         Database new_db (2, name, true);
-                    else
+                    else {
                         std::cout << "Unknown database type\n";
+                        return -1;
+                    }
 
                 } else {
                     std::cout << "Unknown argument of database creation or wrong format\n";
-                    return;
+                    return -1;
                 }
             }
         } else if (all_words[0] == "insert")
@@ -576,7 +650,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (current_db == nullptr)
                 {
                     std::cout << "No database is used\n";
-                    return;
+                    return -1;
                 }
 
                 bool is_ok = false;
@@ -642,7 +716,7 @@ void parsing_in (std::vector<std::string> all_words)
                                     tr = std::stoi(temp);
                                 } catch (...) {
                                     std::cout << "Wrong value\n";
-                                    return;
+                                    return -1;
                                 }
 
                                 int_val.push_back(tr);
@@ -650,25 +724,41 @@ void parsing_in (std::vector<std::string> all_words)
                             }
                         }
 
+                        for (auto x : str_val)
+                            if (x.size() > 32)
+                            {
+                                std::cout << "String length must be < 32\n";
+                                return -1;
+                            }
+
                         if (data_t != current_db->tb_vec[i]->data_types)
                         {
                             std::cout << "Wrong value\n";
-                            return;
+                            return -1;
 
                         } else {
                             try {
                                 current_db->insert(str_val, int_val, i);
                             } catch (...) {
                                 std::cout << "Wrong foreign key\n";
+                                return -1;
                             }
                         }
 
-                    } else 
+                    } else {
                         std::cout << "Wrong value format (e.g. \"('str', 5)\")\n";
-                } else 
+                        return -1;
+                    }
+
+                } else {
                     std::cout << "Unknown table name\n";
-            } else
+                    return -1;
+                }
+
+            } else {
                 std::cout << "Unknown command\n";
+                return -1;
+            }
         } 
 
     } else if (all_words.size() == 5)
@@ -685,6 +775,7 @@ void parsing_in (std::vector<std::string> all_words)
 
             } else {
                 std::cout << "Unknown command\n";
+                return -1;
             }
 
         } else if (all_words[0] == "delete")
@@ -697,13 +788,13 @@ void parsing_in (std::vector<std::string> all_words)
                 if (current_db == nullptr)
                 {
                     std::cout << "No database is used\n";
-                    return;
+                    return -1;
                 }
 
                 if (all_words[2] == "inforamtion_schema")
                 {
                     std::cout << "It is frobidden to delete from this database\n";
-                    return;
+                    return -1;
                 }
 
                 bool is_ok = false;
@@ -733,7 +824,7 @@ void parsing_in (std::vector<std::string> all_words)
                                 id = std::stoi(arg);
                             } catch (...) {
                                 std::cout << "Wrong id format\n";
-                                return;
+                                return -1;
                             }
 
                             if (id > current_db->tb_vec[i]->tuple_map.size() - 1)
@@ -748,22 +839,33 @@ void parsing_in (std::vector<std::string> all_words)
 
                         } else { 
                             std::cout << "Unknown delete argument\n";
-                            return;
+                            return -1;
                         }
 
                         if (id != -1)
                         {
                             current_db->delete_id(i, id);
 
-                        } else 
+                        } else {
                             std::cout << "No tuple with " << 
                                 all_words[4] << " was found\n";
-                    } else 
+                            return -1;
+                        }
+
+                    } else {
                         std::cout << "Wrong delete argument format\n";
-                } else 
+                        return -1;
+                    }
+
+                } else {
                     std::cout << "Unknown table name\n";
-            } else 
+                    return -1;
+                }
+
+            } else {
                 std::cout << "Unknown command\n";
+                return -1;
+            }
 
         } else if (all_words[0] == "rename")
         {
@@ -779,7 +881,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (all_words[2] == "information_schema")
                 {
                     std::cout << "Forbidden to rename this database\n";
-                    return;
+                    return -1;
                 }
 
                 if (is_ok)
@@ -795,12 +897,18 @@ void parsing_in (std::vector<std::string> all_words)
                         curr_db = all_words[4];
                     }
 
-                } else 
+                } else {
                     std::cout << "Unknown database name\n";
-            } else 
+                    return -1;
+                }
+            } else {
                 std::cout << "Unknown command\n";
-        } else 
+                return -1;
+            }
+        } else {
             std::cout << "Unknown command\n";
+            return -1;
+        }
     }
 
     if (all_words.size() > 3 && all_words[0] == "select")
@@ -808,7 +916,7 @@ void parsing_in (std::vector<std::string> all_words)
         if (current_db == nullptr)
         {
             std::cout << "No database is used\n";
-            return;
+            return -1;
         }
 
         int num_of_from = 1;
@@ -839,7 +947,7 @@ void parsing_in (std::vector<std::string> all_words)
         if (!is_ok)
         {
             std::cout << "Unknown table name\n";
-            return;
+            return -1;
         }
 
         // !!!
@@ -862,7 +970,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (num_of_col == current_db->tb_vec[table_num]->col_names.size())
                 {
                     std::cout << "Unknown column name\n";
-                    return;
+                    return -1;
                 }
 
                 col_out.push_back(num_of_col);
@@ -889,7 +997,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (all_words.size() < num_of_end + 3)
                 {
                     std::cout << "Unknown command\n";
-                    return;
+                    return -1;
                 }
 
                 // find any sign
@@ -906,7 +1014,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (pos == std::string::npos)
                 {
                     std::cout << "Unknown sign\n";
-                    return;
+                    return -1;
                 }
 
                 sign = signs[i];
@@ -916,7 +1024,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (where_col_num == current_db->tb_vec[table_num]->col_names.size())
                 {
                     std::cout << "Unknown column name\n";
-                    return;
+                    return -1;
                 }
 
                 cond = all_words[num_of_end + 2].substr(pos + 1);
@@ -935,7 +1043,7 @@ void parsing_in (std::vector<std::string> all_words)
                     if (all_words.size() < num_of_end + 5)
                     {
                         std::cout << "Unknown command\n";
-                        return;
+                        return -1;
                     }
 
                     is_sort = true;
@@ -948,7 +1056,7 @@ void parsing_in (std::vector<std::string> all_words)
                         if (order_col == -1)
                         {
                             std::cout << "Unknown column name\n";
-                            return;
+                            return -1;
                         }
 
                         dir = (all_words[num_of_end + 4] == "asc");
@@ -964,7 +1072,7 @@ void parsing_in (std::vector<std::string> all_words)
                         is_write = true;
                     else {
                         std::cout << "Unknown command \n";
-                        return;
+                        return -1;
                     }
                 }
             }
@@ -976,6 +1084,7 @@ void parsing_in (std::vector<std::string> all_words)
         } catch (...)
         {
             std::cout << "Error inside kernel\n";
+            return -1;
         }
 
         // smth with files
@@ -984,7 +1093,7 @@ void parsing_in (std::vector<std::string> all_words)
         if (current_db == nullptr)
         {
             std::cout << "No database is used\n";
-            return;
+            return -1;
         }
 
         case_sens(all_words[2]);
@@ -992,7 +1101,7 @@ void parsing_in (std::vector<std::string> all_words)
         if (all_words[2] != "set" && table_num  == -1)
         {
             std::cout << "Unknown command or table name\n";
-            return;
+            return -1;
         }
         
         int num_of_where = 3;
@@ -1018,7 +1127,7 @@ void parsing_in (std::vector<std::string> all_words)
                     id = std::stoi(arg);
                 } catch (...) {
                     std::cout << "Wrong id format\n";
-                    return;
+                    return -1;
                 }
 
                 if (id > current_db->tb_vec[table_num]->tuple_map.size() - 1)
@@ -1034,7 +1143,7 @@ void parsing_in (std::vector<std::string> all_words)
 
             } else { 
                 std::cout << "Unknown update argument\n";
-                return;
+                return -1;
             }
         }
 
@@ -1044,7 +1153,7 @@ void parsing_in (std::vector<std::string> all_words)
             if (old_one == nullptr)
             {
                 std::cout << "Error while getting tuple\n";
-                return;
+                return -1;
             }
 
             auto data = old_one->get_data();
@@ -1061,7 +1170,7 @@ void parsing_in (std::vector<std::string> all_words)
                 if (col_num == -1)
                 {
                     std::cout << "Unknown column name\n";
-                    return;
+                    return -1;
                 }
 
                 std::string new_value = i->substr(pos + 1);
@@ -1072,7 +1181,7 @@ void parsing_in (std::vector<std::string> all_words)
                     if (current_db->tb_vec[table_num]->data_types[col_num - 1] != "str")
                     {
                         std::cout << "Wrong data format\n";
-                        return;
+                        return -1;
                     }
 
                     l1[col_num - 1] = new_value;
@@ -1084,13 +1193,13 @@ void parsing_in (std::vector<std::string> all_words)
                         if (current_db->tb_vec[table_num]->data_types[col_num - 1] != "int")
                         {
                             std::cout << "Wrong data format\n";
-                            return;
+                            return -1;
                         }
 
                         l2[col_num - l1.size() - 1] = std::stoi(new_value);
                     } catch (...) {
                         std::cout << "Wrong new value format\n";
-                        return;
+                        return -1;
                     }
                 }
 
@@ -1101,20 +1210,31 @@ void parsing_in (std::vector<std::string> all_words)
                 current_db->insert(l1, l2, table_num, id);
             } catch (...) {
                 std::cout << "Error while updating tuple\n";
-                return;
+                return -1;
             }
 
-        } else 
+        } else {
             std::cout << "Wrong id\n";
+            return -1;
+        }
     } 
+
+    return 0;
 }
 
-void parsing (std::vector<std::string> w) // for inside use only
+// for inside use only
+int parsing (std::vector<std::string> w)
 {
-    parsing_in (w);
+    return parsing_in (w);
 }
 
-void parsing (std::string& answ)
+int parsing (std::initializer_list<std::string> ilist)
+{
+    std::vector<std::string> vec (ilist);
+    return parsing_in(vec);
+}
+
+int parsing (std::string answ)
 {
     //remove duplicate/first/last spaces
     if (answ[0] == ' ')
@@ -1179,5 +1299,5 @@ void parsing (std::string& answ)
         std::cout << x << std::endl;
         */
 
-    parsing_in (all_words);
+    return parsing_in (all_words);
 }

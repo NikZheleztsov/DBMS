@@ -114,7 +114,7 @@ void db_full_write (Database& db)
                         if (file.tellp() < 512 + 128 * db.tb_vec.size() + block_size * num_of_bl)
                         {
                             int membl_size = block_size - 5 - size * (4 + tup_size);
-                            char* membl = new char [membl_size];
+                            char* membl = new char [membl_size] ();
                             file.write(membl, membl_size);
                             delete [] membl;
                         }
@@ -235,7 +235,7 @@ Database* db_meta_read (std::string name)
                         uint8_t tb_type = 255;
                         file.read(reinterpret_cast<char*>(&tb_type), 1);
                         if (tb_type != x->table_type)
-                            throw std::invalid_argument("Error while reading data block");
+                            std::cout << "Error while reading " << x->table_name << " table\n";
                         uint32_t tuples = 0;
                         file.read(reinterpret_cast<char*>(&tuples), 4);
                         for (int i = 0; i < tuples; i++)
