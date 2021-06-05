@@ -1,4 +1,5 @@
 #include <string>
+#include <set>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -827,9 +828,6 @@ int parsing_in (std::vector<std::string> all_words)
                                 return -1;
                             }
 
-                            if (id > current_db->tb_vec[i]->tuple_map.size() - 1)
-                                id = -1;
-
                         } else if (all_words[4].find("name") != std::string::npos)
                         {
                             std::stringstream in (arg);
@@ -845,6 +843,61 @@ int parsing_in (std::vector<std::string> all_words)
                         if (id != -1)
                         {
                             current_db->delete_id(i, id);
+
+                            // cascade delete
+                            std::set<int> set_dep;
+                            std::set<int> set_borg;
+                            // for key, not for foreign id !
+                            if (i == 0) // faculty
+                            {
+                                auto f = current_db->tb_vec[1]->tuple_map.find(id);
+                                while (f != current_db->tb_vec[1]->tuple_map.end())
+                                {
+                                    current_db->delete_id(1, f->first);
+                                    set_dep.insert(f->first);
+                                }
+
+                                if (current_db->db_type == 2)
+                                {
+                                    auto f = current_db->tb_vec[3]->tuple_map.find(id);
+                                    while (f != current_db->tb_vec[3]->tuple_map.end())
+                                    {
+                                        current_db->delete_id(3, f->first);
+                                        set_dep.insert(f->first);
+                                        f = current_db->tb_vec[3]->tuple_map.find(id);
+                                    }
+                                }
+
+                            } else if (i == 0 || i == 1 || i == 3) // dep or borg
+                            {
+                                if (i == 1)
+                                    set_dep.insert(id);
+                                else if (i == 3)
+                                    set_borg.insert(id);
+
+                                for (auto x : set_dep)
+                                {
+                                    auto f = current_db->tb_vec[2]->tuple_map.find(x);
+                                    while (f != current_db->tb_vec[2]->tuple_map.end())
+                                    {
+                                        current_db->delete_id(2, f->first);
+                                        f = current_db->tb_vec[2]->tuple_map.find(x);
+                                    }
+                                }
+
+                                if (current_db->db_type == 2)
+                                {
+                                    for (auto x : set_borg)
+                                    {
+                                        auto f = current_db->tb_vec[4]->tuple_map.find(x);
+                                        while (f != current_db->tb_vec[4]->tuple_map.end())
+                                        {
+                                            current_db->delete_id(4, f->first);
+                                            f = current_db->tb_vec[4]->tuple_map.find(x);
+                                        }
+                                    }
+                                }
+                            }
 
                         } else {
                             std::cout << "No tuple with " << 
