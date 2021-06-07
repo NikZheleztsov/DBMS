@@ -271,7 +271,7 @@ DBMS [(none)]>
 <br>
 
 3. **Правила выборки**
-<br>
+
     Факультеты, имеющие больше n кафедр
     ```
     > select * from faculties where num_dep>3;
