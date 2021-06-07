@@ -500,9 +500,6 @@ int parsing_in (std::vector<std::string> all_words)
             } else if (all_words[1] == "tables")
             {
                 show_tables();
-            } else {
-                std::cout << "Unknown command\n";        
-                return -1;
             }
 
         } else if (all_words[0] == "use")
@@ -614,7 +611,7 @@ int parsing_in (std::vector<std::string> all_words)
                 fac = current_db->get_tuple(0, dep->for_key);
             } else
             {
-                tuple* tup = current_db->get_tuple(4, id_dep);
+                tuple* tup = current_db->get_tuple(4, id_borg);
                 tuple* borg = current_db->get_tuple(3, tup->for_key);
                 fac = current_db->get_tuple(0, borg->for_key);
             }
@@ -634,9 +631,6 @@ int parsing_in (std::vector<std::string> all_words)
             } else 
                 std::cout << "No database is used\n";
 
-        } else {
-            std::cout << "Unknown command\n";
-            return -1;
         }
 
     } else if (all_words.size() == 3)
@@ -675,17 +669,11 @@ int parsing_in (std::vector<std::string> all_words)
                     std::cout << "Unknown database name\n";
                     return -1;
                 }
-            } else {
-                std::cout << "Unknown command\n";
-                return -1;
-            }
+            } 
         } else if (all_words[0] == "create")
         {
             all_words.push_back("(type=common)");
             parsing(all_words);
-        } else {
-            return -1;
-            std::cout << "Unknown command\n";
         }
 
     } else if (all_words.size() == 4)
@@ -846,9 +834,6 @@ int parsing_in (std::vector<std::string> all_words)
                     return -1;
                 }
 
-            } else {
-                std::cout << "Unknown command\n";
-                return -1;
             }
         } 
 
@@ -864,9 +849,6 @@ int parsing_in (std::vector<std::string> all_words)
                 all_words.erase(++all_words.begin());
                 parsing(all_words);
 
-            } else {
-                std::cout << "Unknown command\n";
-                return -1;
             }
 
         } else if (all_words[0] == "delete")
@@ -1039,9 +1021,6 @@ int parsing_in (std::vector<std::string> all_words)
                     return -1;
                 }
 
-            } else {
-                std::cout << "Unknown command\n";
-                return -1;
             }
 
         } else if (all_words[0] == "rename")
@@ -1078,13 +1057,7 @@ int parsing_in (std::vector<std::string> all_words)
                     std::cout << "Unknown database name\n";
                     return -1;
                 }
-            } else {
-                std::cout << "Unknown command\n";
-                return -1;
             }
-        } else {
-            std::cout << "Unknown command\n";
-            return -1;
         }
     }
 
@@ -1436,7 +1409,6 @@ int parsing (std::string answ)
 
         std::string temp = answ.substr(prev_pos, pos - prev_pos);
 
-
         // all ( ... ) to one word
         if (!temp.empty())
         {
@@ -1446,9 +1418,13 @@ int parsing (std::string answ)
                     temp += answ.substr(pos);
                 pos = -1;
 
-            } else if (pos != -1 && temp.find('\'') != std::string::npos)
+            } else if (pos != -1 && temp.find('\'') != std::string::npos &&
+                        temp.find('\'', temp.find('\'') + 1) == std::string::npos)
             {
                 int temp_pos = answ.find('\'', pos);
+                if (temp_pos == std::string::npos)
+                    return -1;
+
                 temp += answ.substr(pos, temp_pos - pos + 1);
                 pos = temp_pos + 1;
 

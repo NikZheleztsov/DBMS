@@ -1,0 +1,7 @@
+select * from faculties;
+select * from departments;
+select * from disciplines_dep;
+
+# error if db_type == 1
+select * from base_org;
+select * from disciplines_borg;

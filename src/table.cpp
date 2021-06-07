@@ -83,11 +83,13 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
     }
 
 
+    auto d_t = data_types[sort_col_num];
+
     if (is_sort)
     {
-        std::sort(out.begin(), out.end(), [&dir, &sort_col_num, this] (std::vector<std::string>& a,
-                                              std::vector<std::string>& b) {
-                if (this->data_types[sort_col_num] == "str")
+        std::sort(out.begin(), out.end(), [&dir, &d_t, &sort_col_num] (std::vector<std::string> a,
+                                              std::vector<std::string> b) {
+                if (d_t == "str")
                 {
                     if (dir)
                         return (a[sort_col_num] < b[sort_col_num]);
@@ -175,23 +177,111 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
             i++;
         }
 
+        int tb_num = 0;
+        for (auto y : current_db->tb_vec)
+        {
+            if (y->table_name == table_name)
+                break;
+
+            tb_num++;
+        }
+
         Database* write_db = new Database (current_db->db_type, name, 1);
         for (auto x : keys)
         {
-            int tb_num = 0;
-            for (auto y : current_db->tb_vec)
+
+            // recursive save 
+            if (tb_num == 0)
             {
-                if (y->table_name == table_name)
-                    break;
+                // saving of faculty
+                auto data = tuple_map.find(x)->second->get_data();
+                write_db->insert(data.first, data.second, 0);
 
-                tb_num++;
+                std::for_each(current_db->tb_vec[1]->tuple_map.begin(), 
+                        current_db->tb_vec[1]->tuple_map.end(), [x, &write_db] 
+                        (std::pair<uint32_t, tuple*> t)->void 
+                        {
+                        if (t.second->for_key == x)
+                        {
+                        // saving of department
+                        auto data = t.second->get_data();
+                        write_db->insert (data.first, data.second, 1);
+
+                        auto dep_id = t.first;
+                        std::for_each(current_db->tb_vec[2]->tuple_map.begin(),
+                                current_db->tb_vec[2]->tuple_map.end(), [dep_id, &write_db]
+                                ( std::pair<uint32_t, tuple*> dis)->void
+                                {
+                                if (dis.second->for_key == dep_id)
+                                    write_db->insert( dis.second->get_data().first, dis.second->get_data().second, 2);
+                                });
+                        }
+                        });
+
+                if (current_db->db_type == 2)
+                {
+                    std::for_each(current_db->tb_vec[3]->tuple_map.begin(), 
+                            current_db->tb_vec[3]->tuple_map.end(), [x, &write_db] 
+                            (std::pair<uint32_t, tuple*> t)->void 
+                            {
+                            if (t.second->for_key == x)
+                            {
+                            auto data = t.second->get_data();
+                            write_db->insert (data.first, data.second, 3);
+
+                            auto dep_id = t.first;
+                            std::for_each(current_db->tb_vec[4]->tuple_map.begin(),
+                                    current_db->tb_vec[4]->tuple_map.end(), [dep_id, &write_db]
+                                    ( std::pair<uint32_t, tuple*> dis)->void
+                                    {
+                                    if (dis.second->for_key == dep_id)
+                                        write_db->insert( dis.second->get_data().first, dis.second->get_data().second, 4);
+                                    });
+                            } 
+                            });
+                }
+
+            } else if (tb_num == 1)
+            {
+                auto data = tuple_map.find(x)->second->get_data();
+                write_db->insert(data.first, data.second, 1);
+
+                auto dep_id = x;
+                std::for_each(current_db->tb_vec[2]->tuple_map.begin(),
+                        current_db->tb_vec[2]->tuple_map.end(), [dep_id, &write_db]
+                        ( std::pair<uint32_t, tuple*> dis)->void
+                        {
+                        if (dis.second->for_key == dep_id)
+                        write_db->insert( dis.second->get_data().first, dis.second->get_data().second, 2);
+                        });
+
+            } else if (tb_num == 2)
+            {
+                write_db->insert( tuple_map.find(x)->second->get_data().first, 
+                        tuple_map.find(x)->second->get_data().second, 2);
+
+            } else if (tb_num == 3)
+            {
+                auto data = tuple_map.find(x)->second->get_data();
+                write_db->insert(data.first, data.second, 3);
+
+                auto dep_id = x;
+                std::for_each(current_db->tb_vec[4]->tuple_map.begin(),
+                        current_db->tb_vec[4]->tuple_map.end(), [dep_id, &write_db]
+                        ( std::pair<uint32_t, tuple*> dis)->void
+                        {
+                        if (dis.second->for_key == dep_id)
+                        write_db->insert( dis.second->get_data().first, dis.second->get_data().second, 4);
+                        });
+
+            } else if (tb_num == 4)
+            {
+                write_db->insert( tuple_map.find(x)->second->get_data().first, 
+                        tuple_map.find(x)->second->get_data().second, 4);
             }
-
-            tuple* old_one = tuple_map.find(x)->second;;
-            auto data = old_one->get_data();
-            write_db->insert (data.first, data.second, tb_num);
         }
 
+        write_db->write();
         delete write_db;
     }
 }
