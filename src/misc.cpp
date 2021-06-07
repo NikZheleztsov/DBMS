@@ -1,4 +1,5 @@
 #include <string>
+#include <algorithm>
 #include <set>
 #include <filesystem>
 #include <fstream>
@@ -227,6 +228,74 @@ void describe_table (std::string name)
         std::cout << "Unknown table name\n";
 }
 
+
+void get_info_about_faculty(uint32_t id)
+{
+    std::set<int> set_dep;
+    std::set<int> set_borg;
+
+    auto fac = current_db->tb_vec[0]->tuple_map.find(id);
+    if (fac == current_db->tb_vec[0]->tuple_map.end())
+    {
+        std::cout << "No faculty was found\n";
+        return;
+    }
+
+    // faculty name printing 
+    std::cout << std::setw(60) << std::setfill('=') << '=' << std::endl << '|';
+    std::cout << std::setw(57) << std::setfill(' ') 
+        << std::right << fac->second->name << " |" << std::endl;
+    std::cout << std::setw(60) << std::setfill('=') << '=' << std::endl << std::endl;
+
+    // all departments info printing
+    std::cout << "Departments\n";
+    std::for_each(current_db->tb_vec[1]->tuple_map.begin(), 
+       current_db->tb_vec[1]->tuple_map.end(), [id] 
+       (std::pair<uint32_t, tuple*> t)->void 
+       {
+            if (t.second->for_key == id)
+            {
+                std::cout << std::setw(60) << std::setfill('=') << '=' << std::endl;
+                std::cout << '\t' << t.second->name << std::endl;
+
+                auto dep_id = t.first;
+                std::for_each(current_db->tb_vec[2]->tuple_map.begin(),
+                        current_db->tb_vec[2]->tuple_map.end(), [dep_id]
+                        ( std::pair<uint32_t, tuple*> dis)->void
+                        {
+                            if (dis.second->for_key == dep_id)
+                                std::cout << "\t\t* " << dis.second->name << std::endl;
+                        });
+            }
+       });
+
+    if (current_db->db_type == 2)
+    {
+        std::cout << std::setw(60) << std::setfill('=') << '=' << std::endl << std::endl;
+        std::cout << "Base organisations\n";
+
+        std::for_each(current_db->tb_vec[3]->tuple_map.begin(), 
+                current_db->tb_vec[3]->tuple_map.end(), [id] 
+                (std::pair<uint32_t, tuple*> t)->void 
+                {
+	                if (t.second->for_key == id)
+	                {
+		                std::cout << std::setw(60) << std::setfill('=') << '=' << std::endl;
+		                std::cout << '\t' << t.second->name << std::endl;
+		
+		                auto dep_id = t.first;
+		                std::for_each(current_db->tb_vec[4]->tuple_map.begin(),
+		                        current_db->tb_vec[4]->tuple_map.end(), [dep_id]
+		                        ( std::pair<uint32_t, tuple*> dis)->void
+		                        {
+		                            if (dis.second->for_key == dep_id)
+		                                std::cout << "\t\t* " << dis.second->name << std::endl;
+		                        });
+	                } 
+                });
+    }
+}
+
 void help () 
 {
 
@@ -287,6 +356,9 @@ void help ()
         tb.push_tuple({" <sgn><val> ORDER BY", "    example for more info"});
         tb.push_tuple({" <cl> ASC(DESC) WRITE]", ""});
         tb.push_tuple({" ", " "});
+        tb.push_tuple({" SOURCE <file>", " -> execute <file> from"});
+        tb.push_tuple({" ", "    'scripts' directory"});
+        tb.push_tuple({" ", " "});
         tb.print();
 
     }
@@ -306,6 +378,11 @@ void help ()
         tb.push_tuple({" ", "    faculty where discipline "});
         tb.push_tuple({" ", "    with a <val> name is "});
         tb.push_tuple({" ", "    being taught"});
+        tb.push_tuple({" ", " "});
+        tb.push_tuple({" faculty_info <val>", " -> provide all names of "});
+        tb.push_tuple({" ", "    departments, base org. "});
+        tb.push_tuple({" ", "    and disciplines"});
+        tb.push_tuple({" ", " "});
         tb.print();
     }
 
@@ -514,7 +591,6 @@ int parsing_in (std::vector<std::string> all_words)
 
         } else if (all_words[0] == "which_faculty")
         {
-
             std::stringstream in (all_words[1]);
             in >> std::quoted(all_words[1], '\'');
 
@@ -530,20 +606,34 @@ int parsing_in (std::vector<std::string> all_words)
                 return -1;
             }
             
+            tuple* fac;
             if (id_dep != -1)
             {
                 tuple* tup = current_db->get_tuple(2, id_dep);
                 tuple* dep = current_db->get_tuple(1, tup->for_key);
-                tuple* fac = current_db->get_tuple(0, dep->for_key);
-                std::cout << "Name of faculty -> " << fac->name << std::endl;
+                fac = current_db->get_tuple(0, dep->for_key);
             } else
             {
                 tuple* tup = current_db->get_tuple(4, id_dep);
                 tuple* borg = current_db->get_tuple(3, tup->for_key);
-                tuple* fac = current_db->get_tuple(0, borg->for_key);
-                std::cout << "Name of faculty -> " << fac->name << std::endl;
+                fac = current_db->get_tuple(0, borg->for_key);
             }
+
+            std::cout << "Name of faculty -> " << fac->name << std::endl;
             
+        } else if (all_words[0] == "faculty_info")
+        {
+            std::stringstream in (all_words[1]);
+            in >> std::quoted(all_words[1], '\'');
+
+            if (current_db != nullptr)
+            {
+                auto id = current_db->get_id(0, all_words[1]);
+                get_info_about_faculty(id);
+
+            } else 
+                std::cout << "No database is used\n";
+
         } else {
             std::cout << "Unknown command\n";
             return -1;
@@ -792,7 +882,7 @@ int parsing_in (std::vector<std::string> all_words)
                     return -1;
                 }
 
-                if (all_words[2] == "inforamtion_schema")
+                if (all_words[2] == "information_schema")
                 {
                     std::cout << "It is frobidden to delete from this database\n";
                     return -1;
@@ -850,25 +940,44 @@ int parsing_in (std::vector<std::string> all_words)
                             // for key, not for foreign id !
                             if (i == 0) // faculty
                             {
-                                auto f = current_db->tb_vec[1]->tuple_map.find(id);
+                                // auto f = current_db->tb_vec[1]->tuple_map.find(id);
+                                auto f = find_if(current_db->tb_vec[1]->tuple_map.begin(), 
+                                        current_db->tb_vec[1]->tuple_map.end(), [id] (
+                                            std::pair<uint32_t, tuple*> t) {
+                                        return t.second->for_key == id; });
+                                        
                                 while (f != current_db->tb_vec[1]->tuple_map.end())
                                 {
                                     current_db->delete_id(1, f->first);
                                     set_dep.insert(f->first);
+                                    f = find_if(current_db->tb_vec[1]->tuple_map.begin(), 
+                                            current_db->tb_vec[1]->tuple_map.end(), [id] (
+                                                std::pair<uint32_t, tuple*> t) {
+                                            return t.second->for_key == id; });
                                 }
 
                                 if (current_db->db_type == 2)
                                 {
-                                    auto f = current_db->tb_vec[3]->tuple_map.find(id);
+                                    auto f = find_if(current_db->tb_vec[3]->tuple_map.begin(), 
+                                            current_db->tb_vec[3]->tuple_map.end(), [id] (
+                                                std::pair<uint32_t, tuple*> t) {
+                                            return t.second->for_key == id; });
+
                                     while (f != current_db->tb_vec[3]->tuple_map.end())
                                     {
                                         current_db->delete_id(3, f->first);
-                                        set_dep.insert(f->first);
-                                        f = current_db->tb_vec[3]->tuple_map.find(id);
+                                        set_borg.insert(f->first);
+
+                                        f = find_if(current_db->tb_vec[3]->tuple_map.begin(), 
+                                                current_db->tb_vec[3]->tuple_map.end(), [id] (
+                                                    std::pair<uint32_t, tuple*> t) {
+                                                return t.second->for_key == id; });
                                     }
                                 }
 
-                            } else if (i == 0 || i == 1 || i == 3) // dep or borg
+                            } 
+
+                            if (i == 0 || i == 1 || i == 3) // dep or borg
                             {
                                 if (i == 1)
                                     set_dep.insert(id);
@@ -877,11 +986,18 @@ int parsing_in (std::vector<std::string> all_words)
 
                                 for (auto x : set_dep)
                                 {
-                                    auto f = current_db->tb_vec[2]->tuple_map.find(x);
+                                    auto f = find_if(current_db->tb_vec[2]->tuple_map.begin(), 
+                                            current_db->tb_vec[2]->tuple_map.end(), [x] (
+                                                std::pair<uint32_t, tuple*> t) {
+                                            return t.second->for_key == x; });
+
                                     while (f != current_db->tb_vec[2]->tuple_map.end())
                                     {
                                         current_db->delete_id(2, f->first);
-                                        f = current_db->tb_vec[2]->tuple_map.find(x);
+                                        f = find_if(current_db->tb_vec[2]->tuple_map.begin(), 
+                                                current_db->tb_vec[2]->tuple_map.end(), [x] (
+                                                    std::pair<uint32_t, tuple*> t) {
+                                                return t.second->for_key == x; });
                                     }
                                 }
 
@@ -889,11 +1005,19 @@ int parsing_in (std::vector<std::string> all_words)
                                 {
                                     for (auto x : set_borg)
                                     {
-                                        auto f = current_db->tb_vec[4]->tuple_map.find(x);
+                                        auto f = find_if(current_db->tb_vec[4]->tuple_map.begin(), 
+                                                current_db->tb_vec[4]->tuple_map.end(), [x] (
+                                                    std::pair<uint32_t, tuple*> t) {
+                                                return t.second->for_key == x; });
+
                                         while (f != current_db->tb_vec[4]->tuple_map.end())
                                         {
                                             current_db->delete_id(4, f->first);
-                                            f = current_db->tb_vec[4]->tuple_map.find(x);
+
+                                            f = find_if(current_db->tb_vec[4]->tuple_map.begin(), 
+                                                    current_db->tb_vec[4]->tuple_map.end(), [x] (
+                                                        std::pair<uint32_t, tuple*> t) {
+                                                    return t.second->for_key == x; });
                                         }
                                     }
                                 }

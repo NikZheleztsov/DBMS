@@ -7,7 +7,7 @@ USE MGTU;
 
 #####################################################
 
-INSERT faculties VALUES ('INFORMATICS', 'IU', 5, 1);
+INSERT faculties VALUES ('Informatics', 'IU', 5, 1);
 
 INSERT departments VALUES ('ACS for Flight Vehicles', 0);
 INSERT departments VALUES ('Systems for orientation', 0);

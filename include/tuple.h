@@ -13,11 +13,10 @@ class Database;
 
 class tuple 
 {
-protected:
+public:
     uint32_t size = 0;
     int32_t for_key = -1; // foreign_key (if == -1 then doesn't used)
 
-public:
     std::string name = ""; // 32 byte
 
     tuple () {}

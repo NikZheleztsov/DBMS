@@ -18,7 +18,6 @@ protected:
     // <= 32 bytes
     std::vector <uint8_t> pointers;
     uint32_t row_num = 0;
-    std::map<uint32_t, tuple*> tuple_map;
 
     Table () : pointers(128) {};
 
@@ -28,6 +27,7 @@ public:
     std::string table_name;
     std::vector <std::string> col_names;
     std::vector<std::string> data_types;
+    std::map<uint32_t, tuple*> tuple_map;
 
     virtual void insert (std::vector<std::string>,
                          std::vector<uint32_t>, int32_t) = 0;
