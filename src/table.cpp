@@ -83,10 +83,10 @@ void Table::select(std::vector<int8_t> col_out, // columns which have to be prin
     }
 
 
-    auto d_t = data_types[sort_col_num];
 
     if (is_sort)
     {
+        auto d_t = data_types[sort_col_num];
         std::sort(out.begin(), out.end(), [&dir, &d_t, &sort_col_num] (std::vector<std::string> a,
                                               std::vector<std::string> b) {
                 if (d_t == "str")
